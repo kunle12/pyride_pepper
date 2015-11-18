@@ -1,14 +1,14 @@
 /*
- *  PyNaoServer.h
- *  PyNaoServer
+ *  PyPepperServer.h
+ *  PyPepperServer
  *
- *  Created by Xun Wang on 27/08/09.
- *  Copyright 2009 Galaxy Network. All rights reserved.
+ *  Created by Xun Wang on 18/11/15.
+ *  Copyright 2009,2015 Galaxy Network. All rights reserved.
  *
  */
 
-#ifndef PyNaoServer_h_DEFINED
-#define PyNaoServer_h_DEFINED
+#ifndef PyPepperServer_h_DEFINED
+#define PyPepperServer_h_DEFINED
 
 #include <vector>
 #include <string>
@@ -61,10 +61,10 @@ private:
   void finiWorkerThread();
 };
   
-class PyNaoServer : public ALSoundExtractor, AudioDevice, PyRideExtendedCommandHandler {
+class PyPepperServer : public ALSoundExtractor, AudioDevice, PyRideExtendedCommandHandler {
 public:
-  PyNaoServer( boost::shared_ptr<ALBroker> pBroker, const std::string & pName );
-  virtual ~PyNaoServer();
+  PyPepperServer( boost::shared_ptr<ALBroker> pBroker, const std::string & pName );
+  virtual ~PyPepperServer();
 
   bool innerTest() { return true; }
   bool isRunning() { return true; }
@@ -111,4 +111,4 @@ private:
 };
 } // namespace pyride
 
-#endif // PyNaoServer_h_DEFINED
+#endif // PyPepperServer_h_DEFINED

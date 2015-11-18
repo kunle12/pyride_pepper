@@ -1,34 +1,34 @@
 /*
- *  NaoProxyManager.cpp
- *  PyNaoServer
+ *  PepperProxyManager.cpp
+ *  PyPepperServer
  *
- *  Created by Xun Wang on 16/08/12.
- *  Copyright 2012 Galaxy Network. All rights reserved.
+ *  Created by Xun Wang on 18/11/15.
+ *  Copyright 2012, 2015 Galaxy Network. All rights reserved.
  *
  */
 #include <sys/time.h>
 #include <PyRideCommon.h>
-#include "NaoProxyManager.h"
+#include "PepperProxyManager.h"
 
 namespace pyride {
 
 static const long kMotionCommandGapTolerance = 2 * 1000000 / kMotionCommandFreq;
 
-NaoProxyManager * NaoProxyManager::s_pNaoProxyManager = NULL;
+PepperProxyManager * PepperProxyManager::s_pPepperProxyManager = NULL;
 
 void * pulse_thread( void * controller )
 {
-  ((NaoProxyManager *)controller)->continuePluseChestLED();
+  ((PepperProxyManager *)controller)->continuePluseChestLED();
   return NULL;
 }
 
 void * timeout_thread( void * controller )
 {
-  ((NaoProxyManager *)controller)->timeoutCheck();
+  ((PepperProxyManager *)controller)->timeoutCheck();
   return NULL;
 }
 
-NaoProxyManager::NaoProxyManager() :
+PepperProxyManager::PepperProxyManager() :
   moveInitialised_( false ),
   isChestLEDPulsating_( false ),
   runningThread_( (pthread_t)NULL ),
@@ -39,21 +39,21 @@ NaoProxyManager::NaoProxyManager() :
   pthread_mutex_init( &t_mutex_, &t_mta );
 }
 
-NaoProxyManager::~NaoProxyManager()
+PepperProxyManager::~PepperProxyManager()
 {
   pthread_mutex_destroy( &t_mutex_ );
   pthread_mutexattr_destroy( &t_mta );
 }
 
-NaoProxyManager * NaoProxyManager::instance()
+PepperProxyManager * PepperProxyManager::instance()
 {
-  if (!s_pNaoProxyManager) {
-    s_pNaoProxyManager = new NaoProxyManager();
+  if (!s_pPepperProxyManager) {
+    s_pPepperProxyManager = new PepperProxyManager();
   }
-  return s_pNaoProxyManager;
+  return s_pPepperProxyManager;
 }
 
-void NaoProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boost::shared_ptr<ALMemoryProxy> memoryProxy )
+void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boost::shared_ptr<ALMemoryProxy> memoryProxy )
 {
   memoryProxy_ = memoryProxy;
 
@@ -61,51 +61,51 @@ void NaoProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boost:
     speechProxy_ = boost::shared_ptr<ALTextToSpeechProxy>(new ALTextToSpeechProxy( broker ));
   }
   catch (const ALError& e) {
-    ERROR_MSG( "PyNaoServer: Could not create a proxy to ALTextToSpeech.\n");
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALTextToSpeech.\n");
     speechProxy_.reset();
   }
   if (speechProxy_) {
-    INFO_MSG( "Nao text to speech is successfully initialised.\n" );
+    INFO_MSG( "Pepper text to speech is successfully initialised.\n" );
   }
   
   try {
     ledProxy_ = boost::shared_ptr<ALLedsProxy>(new ALLedsProxy( broker ));
   }
   catch (const ALError& e) {
-    ERROR_MSG( "PyNaoServer: Could not create a proxy to ALLeds.\n");
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALLeds.\n");
     ledProxy_.reset();
   }
   if (ledProxy_) {
-    INFO_MSG( "Nao LED control is successfully initialised.\n" );
+    INFO_MSG( "Pepper LED control is successfully initialised.\n" );
   }
 
   try {
     audioDeviceProxy_ = boost::shared_ptr<ALAudioDeviceProxy>(new ALAudioDeviceProxy( broker ));
   }
   catch (const ALError& e) {
-    ERROR_MSG( "PyNaoServer: Could not create a proxy to ALAudioDevice.\n");
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALAudioDevice.\n");
     audioDeviceProxy_.reset();
   }
   if (audioDeviceProxy_) {
-    INFO_MSG( "Nao ALAudioDevice are successfully initialised.\n" );
+    INFO_MSG( "Pepper ALAudioDevice are successfully initialised.\n" );
   }
 
   try {
     audioPlayerProxy_ = boost::shared_ptr<ALAudioPlayerProxy>(new ALAudioPlayerProxy( broker ));
   }
   catch (const ALError& e) {
-    ERROR_MSG( "PyNaoServer: Could not create a proxy to ALAudioPlayer.\n");
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALAudioPlayer.\n");
     audioPlayerProxy_.reset();
   }
   if (audioPlayerProxy_) {
-    INFO_MSG( "Nao ALAudioPlayer are successfully initialised.\n" );
+    INFO_MSG( "Pepper ALAudioPlayer are successfully initialised.\n" );
   }
   
   try {
     motionProxy_ = boost::shared_ptr<ALMotionProxy>(new ALMotionProxy( broker ));
   }
   catch (const ALError& e) {
-    ERROR_MSG( "PyNaoServer: Could not create a proxy to ALMotion.\n");
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALMotion.\n");
     motionProxy_.reset();
   }
   if (motionProxy_) {
@@ -135,14 +135,14 @@ void NaoProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boost:
     jointLimits_[20] = motionProxy_->getLimits( "RElbowYaw" )[0];
     jointLimits_[21] = motionProxy_->getLimits( "RElbowRoll" )[0];
 
-    INFO_MSG( "Nao Motion is successfully initialised.\n" );
+    INFO_MSG( "Pepper Motion is successfully initialised.\n" );
   }
   
   try {
     postureProxy_ = boost::shared_ptr<ALRobotPostureProxy>(new ALRobotPostureProxy( broker ));
   }
   catch (const ALError& e) {
-    ERROR_MSG( "PyNaoServer: Could not create a proxy to ALRobotPosture.\n");
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALRobotPosture.\n");
     postureProxy_.reset();
   }
   if (postureProxy_) {
@@ -150,11 +150,11 @@ void NaoProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boost:
     if (motionProxy_) {
       motionProxy_->rest();
     }
-    INFO_MSG( "Nao Robot Posture is successfully initialised.\n" );
+    INFO_MSG( "Pepper Robot Posture is successfully initialised.\n" );
   }
 }
 
-void NaoProxyManager::sayWithVolume( const std::string & text, float volume, bool toBlock )
+void PepperProxyManager::sayWithVolume( const std::string & text, float volume, bool toBlock )
 {
   if (speechProxy_ && text.length()) {
     if (volume <= 1.0 && volume > 0.0) {
@@ -169,7 +169,7 @@ void NaoProxyManager::sayWithVolume( const std::string & text, float volume, boo
   }
 }
 
-bool NaoProxyManager::getHeadPos( float & yaw, float & pitch )
+bool PepperProxyManager::getHeadPos( float & yaw, float & pitch )
 {
   if (motionProxy_) {
     AL::ALValue names = "Head";
@@ -181,7 +181,7 @@ bool NaoProxyManager::getHeadPos( float & yaw, float & pitch )
   return false;
 }
   
-void NaoProxyManager::moveHeadTo( const float yaw, const float pitch, bool absolute )
+void PepperProxyManager::moveHeadTo( const float yaw, const float pitch, bool absolute )
 {
   if (motionProxy_) {
     AL::ALValue names = "Head";
@@ -213,7 +213,7 @@ void NaoProxyManager::moveHeadTo( const float yaw, const float pitch, bool absol
   }
 }
 
-void NaoProxyManager::updateHeadPos( const float yaw, const float pitch, const float speed )
+void PepperProxyManager::updateHeadPos( const float yaw, const float pitch, const float speed )
 {
   if (motionProxy_) {
     AL::ALValue names = "Head";
@@ -240,7 +240,7 @@ void NaoProxyManager::updateHeadPos( const float yaw, const float pitch, const f
   }
 }
 
-void NaoProxyManager::setHeadStiffness( const float stiff )
+void PepperProxyManager::setHeadStiffness( const float stiff )
 {
   if (motionProxy_ && stiff >= 0.0 && stiff <= 1.0) {
     AL::ALValue names = "Head";
@@ -248,7 +248,7 @@ void NaoProxyManager::setHeadStiffness( const float stiff )
   }
 }
 
-void NaoProxyManager::setBodyStiffness( const float stiff )
+void PepperProxyManager::setBodyStiffness( const float stiff )
 {
   if (motionProxy_ && stiff >= 0.0 && stiff <= 1.0) {
     AL::ALValue names = "Body";
@@ -256,7 +256,7 @@ void NaoProxyManager::setBodyStiffness( const float stiff )
   }
 }
 
-void NaoProxyManager::sit( bool relax )
+void PepperProxyManager::sit( bool relax )
 {
   if (postureProxy_) {
     postureProxy_->goToPosture( relax ? "SitRelax" : "Sit", 0.7 );
@@ -265,7 +265,7 @@ void NaoProxyManager::sit( bool relax )
   }
 }
 
-void NaoProxyManager::stand( bool init )
+void PepperProxyManager::stand( bool init )
 {
   if (postureProxy_) {
     postureProxy_->goToPosture( init ? "StandInit" : "Stand", 0.7 );
@@ -273,7 +273,7 @@ void NaoProxyManager::stand( bool init )
   }
 }
 
-void NaoProxyManager::crouch()
+void PepperProxyManager::crouch()
 {
   if (postureProxy_) {
     postureProxy_->goToPosture( "Crouch", 0.7 );
@@ -282,7 +282,7 @@ void NaoProxyManager::crouch()
   }
 }
 
-void NaoProxyManager::lyingDown( bool bellyUp )
+void PepperProxyManager::lyingDown( bool bellyUp )
 {
   if (postureProxy_) {
     postureProxy_->goToPosture( bellyUp ? "LyingBack" : "LyingBelly", 0.7 );
@@ -291,7 +291,7 @@ void NaoProxyManager::lyingDown( bool bellyUp )
   }
 }
 
-bool NaoProxyManager::moveBodyTo( const RobotPose & pose, bool cancelPreviousMove )
+bool PepperProxyManager::moveBodyTo( const RobotPose & pose, bool cancelPreviousMove )
 {
   if (!motionProxy_) {
     ERROR_MSG( "Unable to initialise walk." );
@@ -315,14 +315,14 @@ bool NaoProxyManager::moveBodyTo( const RobotPose & pose, bool cancelPreviousMov
   return true;
 }
 
-void NaoProxyManager::cancelBodyMovement()
+void PepperProxyManager::cancelBodyMovement()
 {
   if (motionProxy_ && motionProxy_->moveIsActive()) {
     motionProxy_->stopMove();
   }
 }
 
-void NaoProxyManager::updateBodyPose( const RobotPose & pose )
+void PepperProxyManager::updateBodyPose( const RobotPose & pose )
 {
   if (!motionProxy_)
     return;
@@ -344,7 +344,7 @@ void NaoProxyManager::updateBodyPose( const RobotPose & pose )
   }
 }
 
-void NaoProxyManager::getBodyJointsPos( std::vector<float> & positions,
+void PepperProxyManager::getBodyJointsPos( std::vector<float> & positions,
                       bool useSensor )
 {
   positions.clear();
@@ -354,7 +354,7 @@ void NaoProxyManager::getBodyJointsPos( std::vector<float> & positions,
   }
 }
 
-void NaoProxyManager::getArmJointsPos( bool isLeft, std::vector<float> & positions,
+void PepperProxyManager::getArmJointsPos( bool isLeft, std::vector<float> & positions,
                      bool useSensor )
 {
   positions.clear();
@@ -364,7 +364,7 @@ void NaoProxyManager::getArmJointsPos( bool isLeft, std::vector<float> & positio
   }
 }
 
-void NaoProxyManager::getLegJointsPos( bool isLeft, std::vector<float> & positions,
+void PepperProxyManager::getLegJointsPos( bool isLeft, std::vector<float> & positions,
                      bool useSensor )
 {
   positions.clear();
@@ -374,7 +374,7 @@ void NaoProxyManager::getLegJointsPos( bool isLeft, std::vector<float> & positio
   }
 }
 
-void NaoProxyManager::setArmStiffness( bool isLeft, const float stiff )
+void PepperProxyManager::setArmStiffness( bool isLeft, const float stiff )
 {
   if (motionProxy_ && stiff >= 0.0 && stiff <= 1.0) {
     AL::ALValue names = isLeft ? "LArm" : "RArm";
@@ -382,7 +382,7 @@ void NaoProxyManager::setArmStiffness( bool isLeft, const float stiff )
   }
 }
 
-void NaoProxyManager::setLegStiffness( bool isLeft, const float stiff )
+void PepperProxyManager::setLegStiffness( bool isLeft, const float stiff )
 {
   if (motionProxy_ && stiff >= 0.0 && stiff <= 1.0) {
     AL::ALValue names = isLeft ? "LLeg" : "RLeg";
@@ -390,7 +390,7 @@ void NaoProxyManager::setLegStiffness( bool isLeft, const float stiff )
   }
 }
 
-bool NaoProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<float> & positions, float frac_speed )
+bool PepperProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<float> & positions, float frac_speed )
 {
   if (!motionProxy_)
     return false;
@@ -428,7 +428,7 @@ bool NaoProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<flo
   return true;
 }
 
-void NaoProxyManager::moveArmWithJointTrajectory( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
+void PepperProxyManager::moveArmWithJointTrajectory( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
                                                  std::vector<float> & times_to_reach, bool inpost )
 {
   if (!motionProxy_)
@@ -486,7 +486,7 @@ void NaoProxyManager::moveArmWithJointTrajectory( bool isLeftArm, std::vector< s
   }
 }
 
-bool NaoProxyManager::moveLegWithJointPos( bool isLeft, const std::vector<float> & positions, float frac_speed )
+bool PepperProxyManager::moveLegWithJointPos( bool isLeft, const std::vector<float> & positions, float frac_speed )
 {
   if (!motionProxy_)
     return false;
@@ -514,7 +514,7 @@ bool NaoProxyManager::moveLegWithJointPos( bool isLeft, const std::vector<float>
   return true;  
 }
 
-bool NaoProxyManager::moveBodyWithJointPos( const std::vector<float> & positions, float frac_speed )
+bool PepperProxyManager::moveBodyWithJointPos( const std::vector<float> & positions, float frac_speed )
 {
   if (!motionProxy_)
     return false;
@@ -542,7 +542,7 @@ bool NaoProxyManager::moveBodyWithJointPos( const std::vector<float> & positions
   return true;  
 }
 
-int NaoProxyManager::loadAudioFile( const std::string & text )
+int PepperProxyManager::loadAudioFile( const std::string & text )
 {
   int audioID = -1;
   if (audioPlayerProxy_) {
@@ -555,28 +555,28 @@ int NaoProxyManager::loadAudioFile( const std::string & text )
   return audioID;
 }
 
-void NaoProxyManager::unloadAudioFile( const int audioID )
+void PepperProxyManager::unloadAudioFile( const int audioID )
 {
   if (audioPlayerProxy_) {
     audioPlayerProxy_->post.unloadFile( audioID );
   }
 }
 
-void NaoProxyManager::unloadAllAudioFiles()
+void PepperProxyManager::unloadAllAudioFiles()
 {
   if (audioPlayerProxy_) {
     audioPlayerProxy_->post.unloadAllFiles();
   }
 }
 
-void NaoProxyManager::playWebAudio( const std::string & url )
+void PepperProxyManager::playWebAudio( const std::string & url )
 {
   if (audioPlayerProxy_) {
     audioPlayerProxy_->post.playWebStream( url, 1.0, 0.0 );
   }
 }
 
-void NaoProxyManager::playAudioID( const int audioID, bool toBlock )
+void PepperProxyManager::playAudioID( const int audioID, bool toBlock )
 {
   if (audioPlayerProxy_) {
     if (toBlock) {
@@ -588,7 +588,7 @@ void NaoProxyManager::playAudioID( const int audioID, bool toBlock )
   }
 }
 
-int NaoProxyManager::getAudioVolume()
+int PepperProxyManager::getAudioVolume()
 {
   if (audioDeviceProxy_) {
     return audioDeviceProxy_->getOutputVolume();
@@ -598,7 +598,7 @@ int NaoProxyManager::getAudioVolume()
   }
 }
 
-void NaoProxyManager::setAudioVolume( const int vol )
+void PepperProxyManager::setAudioVolume( const int vol )
 {
   if (vol < 0 || vol > 100 )
     return;
@@ -608,20 +608,20 @@ void NaoProxyManager::setAudioVolume( const int vol )
   }
 }
 
-void NaoProxyManager::pauseAudioID( const int audioID )
+void PepperProxyManager::pauseAudioID( const int audioID )
 {
   if (audioPlayerProxy_) {
     audioPlayerProxy_->post.pause( audioID );
   }
 }
-void NaoProxyManager::stopAllAudio()
+void PepperProxyManager::stopAllAudio()
 {
   if (audioPlayerProxy_) {
     audioPlayerProxy_->post.stopAll();
   }
 }
 
-void NaoProxyManager::setChestLED( const NAOLedColour colour )
+void PepperProxyManager::setChestLED( const NAOLedColour colour )
 {
   if (ledProxy_) {
     if (isChestLEDPulsating_) {
@@ -666,7 +666,7 @@ void NaoProxyManager::setChestLED( const NAOLedColour colour )
   }
 }
 
-void NaoProxyManager::pulsatingChestLED( const NAOLedColour colour1, const NAOLedColour colour2, const float period )
+void PepperProxyManager::pulsatingChestLED( const NAOLedColour colour1, const NAOLedColour colour2, const float period )
 {
   if (!ledProxy_)
     return;
@@ -693,7 +693,7 @@ void NaoProxyManager::pulsatingChestLED( const NAOLedColour colour1, const NAOLe
   }
 }
 
-void NaoProxyManager::getBatteryStatus( int & percentage, bool & isplugged, bool & ischarging, bool & isdischarging )
+void PepperProxyManager::getBatteryStatus( int & percentage, bool & isplugged, bool & ischarging, bool & isdischarging )
 {
   if (memoryProxy_) {
     percentage = memoryProxy_->getData( "BatteryChargeChanged" );
@@ -703,7 +703,7 @@ void NaoProxyManager::getBatteryStatus( int & percentage, bool & isplugged, bool
   }
 }
 
-void NaoProxyManager::fini()
+void PepperProxyManager::fini()
 {
   if (isChestLEDPulsating_) {
     isChestLEDPulsating_ = false;
@@ -727,7 +727,7 @@ void NaoProxyManager::fini()
 }
 
 // helper function
-void NaoProxyManager::continuePluseChestLED()
+void PepperProxyManager::continuePluseChestLED()
 {
   fd_set dummyFDSet;
   struct timeval timeout;
@@ -745,7 +745,7 @@ void NaoProxyManager::continuePluseChestLED()
   }
 }
 
-void NaoProxyManager::timeoutCheck()
+void PepperProxyManager::timeoutCheck()
 {
   fd_set dummyFDSet;
   struct timeval now, timeout;
@@ -762,7 +762,7 @@ void NaoProxyManager::timeoutCheck()
   timeoutThread_ = (pthread_t)NULL;
 }
   
-float NaoProxyManager::clamp( float val, int jointInd )
+float PepperProxyManager::clamp( float val, int jointInd )
 {
   if (jointInd >= jointLimits_.getSize()) {
     ERROR_MSG( "invalid joint index %d\n", jointInd );
@@ -780,7 +780,7 @@ float NaoProxyManager::clamp( float val, int jointInd )
   }
 }
 
-int NaoProxyManager::colour2Hex( const NAOLedColour colour )
+int PepperProxyManager::colour2Hex( const NAOLedColour colour )
 {
   int retval = 0;
   switch (colour) {

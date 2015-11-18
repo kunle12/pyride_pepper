@@ -68,5 +68,5 @@ qi_install_header( src/ccrtp/*.h SUBFOLDER ccrtp )
                                 #cc++/zstream.h
 #)
 
-qi_use_lib(ccrtp rt pthread dl ccgnu2 crypto)
+qi_use_lib(ccrtp rt pthread dl ccgnu2)
 qi_stage_lib(ccrtp)

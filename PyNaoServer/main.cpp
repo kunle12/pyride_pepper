@@ -6,7 +6,7 @@
 #include <alcommon/altoolsmain.h>
 
 #include "PyRideCommon.h"
-#include "PyNaoServer.h"
+#include "PyPepperServer.h"
 
 #ifdef _WIN32
 # define ALCALL __declspec(dllexport)
@@ -30,7 +30,7 @@ extern "C"
     ALBrokerManager::getInstance()->addBroker( pBroker );
 
     // create modules instance
-    ALModule::createModule<PyNaoServer>( pBroker, "PyNaoServer" );
+    ALModule::createModule<PyPepperServer>( pBroker, "PyPepperServer" );
     return 0;
   }
   

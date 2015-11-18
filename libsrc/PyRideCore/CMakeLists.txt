@@ -21,6 +21,6 @@ qi_create_lib( pyridecore
 
 qi_install_header( *.h )
 
-qi_use_lib(pyridecore pthread dl ccrtp ccgnu2 jpeg python celt )
+qi_use_lib(pyridecore pthread dl ccrtp ccgnu2 jpeg python celt tinyxml)
 qi_stage_lib(pyridecore)
 

@@ -1,5 +1,5 @@
 /*
- *  NaoProxyManager.h
+ *  PepperProxyManager.h
  *  PyRIDE
  *
  *  Created by Xun Wang on 16/08/12.
@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef NaoProxyManager_h_DEFINED
-#define NaoProxyManager_h_DEFINED
+#ifndef PepperProxyManager_h_DEFINED
+#define PepperProxyManager_h_DEFINED
 #include <string>
 #include <pthread.h>
 #include <boost/shared_ptr.hpp>
@@ -62,11 +62,11 @@ enum { // we are dealing with standard soccer NAO only.
   R_ELBOW_ROLL
 };
 
-class NaoProxyManager
+class PepperProxyManager
 {
 public:
-  static NaoProxyManager * instance();
-  ~NaoProxyManager();
+  static PepperProxyManager * instance();
+  ~PepperProxyManager();
   
   void initWithBroker( boost::shared_ptr<ALBroker> broker, boost::shared_ptr<ALMemoryProxy> memoryProxy );
   void sayWithVolume( const std::string & text, float volume  = 0.0, bool toBlock = false );
@@ -131,7 +131,7 @@ public:
   void fini();
 
 private:
-  static NaoProxyManager * s_pNaoProxyManager;
+  static PepperProxyManager * s_pPepperProxyManager;
 
   boost::shared_ptr<ALTextToSpeechProxy> speechProxy_;
   boost::shared_ptr<ALMotionProxy> motionProxy_;
@@ -156,11 +156,11 @@ private:
   pthread_mutex_t t_mutex_;
   pthread_mutexattr_t t_mta;
 
-  NaoProxyManager();
+  PepperProxyManager();
   
   float clamp( float val, int jointInd );
   int colour2Hex( const NAOLedColour colour );
 
 };
 } // namespace pyride
-#endif // NaoProxyManager_h_DEFINED
+#endif // PepperProxyManager_h_DEFINED

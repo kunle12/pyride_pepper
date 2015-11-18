@@ -1,9 +1,9 @@
 /*
- *  PyNaoServer.cpp
+ *  PyPepperServer.cpp
  *  PyRIDE
  *
- *  Created by Xun Wang on 28/08/09.
- *  Copyright 2009 Galaxy Network. All rights reserved.
+ *  Created by Xun Wang on 18/11/15.
+ *  Copyright 2009, 2015 Galaxy Network. All rights reserved.
  *
  */
 
@@ -24,10 +24,10 @@
 #include <PyRideCommon.h>
 #include <PythonServer.h>
 
-#include "PyNaoServer.h"
-#include "NaoProxyManager.h"
+#include "PyPepperServer.h"
+#include "PepperProxyManager.h"
 #include "AppConfigManager.h"
-#include "PyNAOModule.h"
+#include "PyPepperModule.h"
 
 PYRIDE_LOGGING_DECLARE( "/home/nao/log/tin.log" );
 
@@ -73,7 +73,7 @@ bool NaoCam::initDevice()
     videoProxy_ = boost::shared_ptr<ALVideoDeviceProxy>(new ALVideoDeviceProxy( broker_ ));
   }
   catch (const ALError& e) {
-    ERROR_MSG( "PyNaoServer: Could not create a proxy to ALVideoDevice.\n");
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALVideoDevice.\n");
     videoProxy_.reset();
     return isInitialised_;
   }
@@ -85,7 +85,7 @@ bool NaoCam::initDevice()
                                       /* kRGBColorSpace,*/ 5 );
   }
   catch (const ALError& e) {
-    ERROR_MSG( "PyNaoServer: Could not register GVM to ALVideoDevice.\n" );
+    ERROR_MSG( "PyPepperServer: Could not register GVM to ALVideoDevice.\n" );
     videoProxy_.reset();
     return isInitialised_;
   }
@@ -196,7 +196,7 @@ bool NaoCam::getDefaultVideoSettings()
   return true;
 }
 
-bool PyNaoServer::initDevice()
+bool PyPepperServer::initDevice()
 {
   if (isInitialised_) {
     return isInitialised_;
@@ -207,7 +207,7 @@ bool PyNaoServer::initDevice()
                           48000, (int)ALLCHANNELS, 0 );
   }
   catch (const std::exception &error) {
-    ERROR_MSG( "PyNaoServer: Could not set parameters to audio device.\n");
+    ERROR_MSG( "PyPepperServer: Could not set parameters to audio device.\n");
     return isInitialised_;
   }
   packetStamp_ = 0;
@@ -219,7 +219,7 @@ bool PyNaoServer::initDevice()
 
 }
 
-void PyNaoServer::finiDevice()
+void PyPepperServer::finiDevice()
 {
   if (!isInitialised_) {
     return;
@@ -231,7 +231,7 @@ void PyNaoServer::finiDevice()
 
 }
 
-bool PyNaoServer::initWorkerThread()
+bool PyPepperServer::initWorkerThread()
 {
   try {
     if (audioBuffer_)
@@ -247,7 +247,7 @@ bool PyNaoServer::initWorkerThread()
   return true;
 }
 
-void PyNaoServer::finiWorkerThread()
+void PyPepperServer::finiWorkerThread()
 {
   isStreaming_ = false;
 
@@ -263,7 +263,7 @@ void PyNaoServer::finiWorkerThread()
   }
 }
 
-void PyNaoServer::process( const int &pNbOfInputChannels, const int &pNbrSamples,
+void PyPepperServer::process( const int &pNbOfInputChannels, const int &pNbrSamples,
                        const AL_SOUND_FORMAT *pDataInterleaved, const AL::ALValue &pTimeStamp )
 {
   if (!audioBuffer_)
@@ -287,8 +287,8 @@ void PyNaoServer::process( const int &pNbOfInputChannels, const int &pNbrSamples
   this->processAndSendAudioData( audioBuffer_, pNbrSamples );
 }
 
-// implementation of PyNaoServer
-PyNaoServer::PyNaoServer( boost::shared_ptr<ALBroker> pBroker, const std::string & pName ) :
+// implementation of PyPepperServer
+PyPepperServer::PyPepperServer( boost::shared_ptr<ALBroker> pBroker, const std::string & pName ) :
   ALSoundExtractor( pBroker, pName ),
   AudioDevice( 1 ),
   audioBuffer_( NULL ),
@@ -296,22 +296,22 @@ PyNaoServer::PyNaoServer( boost::shared_ptr<ALBroker> pBroker, const std::string
 {
   setModuleDescription( "This is a server module for TIN." );
   functionName( "onRightBumperPressed", getName(), "Method called when the right bumper is pressed.");
-  BIND_METHOD( PyNaoServer::onRightBumperPressed );
+  BIND_METHOD( PyPepperServer::onRightBumperPressed );
   functionName("onLeftBumperPressed", getName(), "Method called when the left bumper is pressed.");
-  BIND_METHOD( PyNaoServer::onLeftBumperPressed );
+  BIND_METHOD( PyPepperServer::onLeftBumperPressed );
   functionName("onSingleChestButtonPressed", getName(), "Method called when the chest button pressed once.");
-  BIND_METHOD( PyNaoServer::onSingleChestButtonPressed );
+  BIND_METHOD( PyPepperServer::onSingleChestButtonPressed );
   functionName("onDoubleChestButtonPressed", getName(), "Method called when the chest button pressed twice.");
-  BIND_METHOD( PyNaoServer::onDoubleChestButtonPressed );
+  BIND_METHOD( PyPepperServer::onDoubleChestButtonPressed );
   functionName("onTripleChestButtonPressed", getName(), "Method called when the chest button pressed three times.");
-  BIND_METHOD( PyNaoServer::onTripleChestButtonPressed );
+  BIND_METHOD( PyPepperServer::onTripleChestButtonPressed );
   functionName("onBatteryPowerPlugged", getName(), "Method called when the battery charger is plugged or unplugged.");
-  BIND_METHOD( PyNaoServer::onBatteryPowerPlugged );
+  BIND_METHOD( PyPepperServer::onBatteryPowerPlugged );
   functionName("onBatteryChargeChanged", getName(), "Method called when a change in battery level.");
-  BIND_METHOD( PyNaoServer::onBatteryChargeChanged );
+  BIND_METHOD( PyPepperServer::onBatteryChargeChanged );
 }
 
-void PyNaoServer::init()
+void PyPepperServer::init()
 {
   PYRIDE_LOGGING_INIT;
 
@@ -328,7 +328,7 @@ void PyNaoServer::init()
     memoryProxy_ = boost::shared_ptr<ALMemoryProxy>(new ALMemoryProxy( getParentBroker() ));
   }
   catch (const ALError& e) {
-    ERROR_MSG( "PyNaoServer: Could not create a proxy to ALMemory.\n");
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALMemory.\n");
     memoryProxy_.reset();
   }
   
@@ -341,30 +341,30 @@ void PyNaoServer::init()
   }
   catch (const ALError& e) {}
 
-  NaoProxyManager::instance()->initWithBroker( getParentBroker(), memoryProxy_ );
+  PepperProxyManager::instance()->initWithBroker( getParentBroker(), memoryProxy_ );
   ServerDataProcessor::instance()->init( naoCams_, naoAudio_ );
   ServerDataProcessor::instance()->addCommandHandler( this );
   AppConfigManager::instance()->loadConfigFromFile( DEFAULT_CONFIGURATION_FILE );
   ServerDataProcessor::instance()->setClientID( AppConfigManager::instance()->clientID() );
   ServerDataProcessor::instance()->setDefaultRobotInfo( NAO, AppConfigManager::instance()->startPosition() );
   
-  PythonServer::instance()->init( AppConfigManager::instance()->enablePythonConsole(), PyNAOModule::instance() );
+  PythonServer::instance()->init( AppConfigManager::instance()->enablePythonConsole(), PyPepperModule::instance() );
   ServerDataProcessor::instance()->discoverConsoles();
 
   if (memoryProxy_) {
     INFO_MSG( "Nao memory proxy is successfully initialised.\n" );
     /* subscribe to sensor events */
-    memoryProxy_->subscribeToEvent( "RightBumperPressed", "PyNaoServer", "onRightBumperPressed" );
-    memoryProxy_->subscribeToEvent( "LeftBumperPressed", "PyNaoServer", "onLeftBumperPressed" );
-    memoryProxy_->subscribeToEvent( "ALSentinel/SimpleClickOccured", "PyNaoServer", "onSingleChestButtonPressed" );
-    memoryProxy_->subscribeToEvent( "ALSentinel/DoubleClickOccured", "PyNaoServer", "onDoubleChestButtonPressed" );
-    memoryProxy_->subscribeToEvent( "ALSentinel/TripleClickOccured", "PyNaoServer", "onTripleChestButtonPressed" );
-    memoryProxy_->subscribeToEvent( "BatteryPowerPluggedChanged", "PyNaoServer", "onBatteryPowerPlugged" );
-    memoryProxy_->subscribeToEvent( "BatteryChargeChanged", "PyNaoServer", "onBatteryChargeChanged" );
+    memoryProxy_->subscribeToEvent( "RightBumperPressed", "PyPepperServer", "onRightBumperPressed" );
+    memoryProxy_->subscribeToEvent( "LeftBumperPressed", "PyPepperServer", "onLeftBumperPressed" );
+    memoryProxy_->subscribeToEvent( "ALSentinel/SimpleClickOccured", "PyPepperServer", "onSingleChestButtonPressed" );
+    memoryProxy_->subscribeToEvent( "ALSentinel/DoubleClickOccured", "PyPepperServer", "onDoubleChestButtonPressed" );
+    memoryProxy_->subscribeToEvent( "ALSentinel/TripleClickOccured", "PyPepperServer", "onTripleChestButtonPressed" );
+    memoryProxy_->subscribeToEvent( "BatteryPowerPluggedChanged", "PyPepperServer", "onBatteryPowerPlugged" );
+    memoryProxy_->subscribeToEvent( "BatteryChargeChanged", "PyPepperServer", "onBatteryChargeChanged" );
   }
 }
 
-void PyNaoServer::fini()
+void PyPepperServer::fini()
 {
   this->notifySystemShutdown();
 
@@ -378,7 +378,7 @@ void PyNaoServer::fini()
   this->finiDevice();
   naoAudio_.clear();
 
-  NaoProxyManager::instance()->fini();
+  PepperProxyManager::instance()->fini();
   AppConfigManager::instance()->fini();
   ServerDataProcessor::instance()->fini();
 
@@ -393,7 +393,7 @@ void PyNaoServer::fini()
   }*/
 }
 
-bool PyNaoServer::executeRemoteCommand( PyRideExtendedCommand command, 
+bool PyPepperServer::executeRemoteCommand( PyRideExtendedCommand command, 
                                             const unsigned char * optionalData,
                                             const int optionalDataLength )
 {
@@ -407,7 +407,7 @@ bool PyNaoServer::executeRemoteCommand( PyRideExtendedCommand command,
       float volume = *((float *)optionalData);
       //DEBUG_MSG( "received volume %f\n", volume );
       char * text = (char *)optionalData + sizeof( float );
-      NaoProxyManager::instance()->sayWithVolume( std::string( text, optionalDataLength - sizeof( float ) ), volume );
+      PepperProxyManager::instance()->sayWithVolume( std::string( text, optionalDataLength - sizeof( float ) ), volume );
     }
       break;
     case HEAD_MOVE_TO:
@@ -416,8 +416,8 @@ bool PyNaoServer::executeRemoteCommand( PyRideExtendedCommand command,
       float newHeadPitch = *((float *)optionalData+1);
       newHeadYaw = newHeadYaw * kHFOV * kDegreeToRAD;
       newHeadPitch = newHeadPitch * kVFOV * kDegreeToRAD;
-      NaoProxyManager::instance()->moveHeadTo( newHeadYaw, newHeadPitch );
-      NaoProxyManager::instance()->setHeadStiffness( 0.0 );
+      PepperProxyManager::instance()->moveHeadTo( newHeadYaw, newHeadPitch );
+      PepperProxyManager::instance()->setHeadStiffness( 0.0 );
     }
       break;
     case UPDATE_BODY_POSE:
@@ -425,7 +425,7 @@ bool PyNaoServer::executeRemoteCommand( PyRideExtendedCommand command,
       unsigned char * dataPtr = (unsigned char *)optionalData;
       RobotPose newPose;
       memcpy( &newPose, dataPtr, sizeof( RobotPose ) );
-      NaoProxyManager::instance()->updateBodyPose( newPose );
+      PepperProxyManager::instance()->updateBodyPose( newPose );
     }
       break;
     default:
@@ -435,19 +435,19 @@ bool PyNaoServer::executeRemoteCommand( PyRideExtendedCommand command,
   return status;
 }
 
-void PyNaoServer::cancelCurrentOperation()
+void PyPepperServer::cancelCurrentOperation()
 {
-  NaoProxyManager::instance()->sayWithVolume( "Emergency Stop!" );
+  PepperProxyManager::instance()->sayWithVolume( "Emergency Stop!" );
 }
 
-PyNaoServer::~PyNaoServer()
+PyPepperServer::~PyPepperServer()
 {
   this->fini();
 }
 
 #pragma callback functions from alproxies.
 
-void PyNaoServer::onRightBumperPressed()
+void PyPepperServer::onRightBumperPressed()
 {
   ALCriticalSection section( callbackMutex_ );
   
@@ -463,14 +463,14 @@ void PyNaoServer::onRightBumperPressed()
     
     arg = Py_BuildValue( "(s)", "right" );
 
-    PyNAOModule::instance()->invokeCallback( "onBumperPressed", arg );
+    PyPepperModule::instance()->invokeCallback( "onBumperPressed", arg );
     Py_DECREF( arg );
     
     PyGILState_Release( gstate );
   }
 }
 
-void PyNaoServer::onLeftBumperPressed()
+void PyPepperServer::onLeftBumperPressed()
 {
   ALCriticalSection section( callbackMutex_ );
   
@@ -486,14 +486,14 @@ void PyNaoServer::onLeftBumperPressed()
     
     arg = Py_BuildValue( "(s)", "left" );
     
-    PyNAOModule::instance()->invokeCallback( "onBumperPressed", arg );
+    PyPepperModule::instance()->invokeCallback( "onBumperPressed", arg );
     Py_DECREF( arg );
     
     PyGILState_Release( gstate );
   }
 }
 
-void PyNaoServer::onSingleChestButtonPressed()
+void PyPepperServer::onSingleChestButtonPressed()
 {
   ALCriticalSection section( callbackMutex_ );
   
@@ -507,13 +507,13 @@ void PyNaoServer::onSingleChestButtonPressed()
   
   arg = Py_BuildValue( "(i)", 1 );
   
-  PyNAOModule::instance()->invokeCallback( "onChestButtonPressed", arg );
+  PyPepperModule::instance()->invokeCallback( "onChestButtonPressed", arg );
   Py_DECREF( arg );
   
   PyGILState_Release( gstate );
 }
 
-void PyNaoServer::onDoubleChestButtonPressed()
+void PyPepperServer::onDoubleChestButtonPressed()
 {
   ALCriticalSection section( callbackMutex_ );
   
@@ -527,13 +527,13 @@ void PyNaoServer::onDoubleChestButtonPressed()
   
   arg = Py_BuildValue( "(i)", 2 );
   
-  PyNAOModule::instance()->invokeCallback( "onChestButtonPressed", arg );
+  PyPepperModule::instance()->invokeCallback( "onChestButtonPressed", arg );
   Py_DECREF( arg );
   
   PyGILState_Release( gstate );
 }
 
-void PyNaoServer::onTripleChestButtonPressed()
+void PyPepperServer::onTripleChestButtonPressed()
 {
   ALCriticalSection section( callbackMutex_ );
   
@@ -547,13 +547,13 @@ void PyNaoServer::onTripleChestButtonPressed()
   
   arg = Py_BuildValue( "(i)", 3 );
   
-  PyNAOModule::instance()->invokeCallback( "onChestButtonPressed", arg );
+  PyPepperModule::instance()->invokeCallback( "onChestButtonPressed", arg );
   Py_DECREF( arg );
 
   PyGILState_Release( gstate );
 }
 
-void PyNaoServer::onBatteryPowerPlugged()
+void PyPepperServer::onBatteryPowerPlugged()
 {
   ALCriticalSection section( callbackMutex_ );
   
@@ -568,13 +568,13 @@ void PyNaoServer::onBatteryPowerPlugged()
 
   arg = Py_BuildValue( "(O)", isplugged ? Py_True : Py_False );
 
-  PyNAOModule::instance()->invokeCallback( "onPowerPluggedChange", arg );
+  PyPepperModule::instance()->invokeCallback( "onPowerPluggedChange", arg );
   Py_DECREF( arg );
   
   PyGILState_Release( gstate );
 }
 
-void PyNaoServer::onBatteryChargeChanged()
+void PyPepperServer::onBatteryChargeChanged()
 {
   ALCriticalSection section( callbackMutex_ );
   
@@ -591,23 +591,23 @@ void PyNaoServer::onBatteryChargeChanged()
   
   arg = Py_BuildValue( "(iO)", batpercent, discharging ? Py_True : Py_False );
   
-  PyNAOModule::instance()->invokeCallback( "onBatteryChargeChange", arg );
+  PyPepperModule::instance()->invokeCallback( "onBatteryChargeChange", arg );
 
   Py_DECREF( arg );
   
   PyGILState_Release( gstate );
 }
   
-void PyNaoServer::notifySystemShutdown()
+void PyPepperServer::notifySystemShutdown()
 {
-  INFO_MSG( "PyNaoServer is shutting down..\n" );
+  INFO_MSG( "PyPepperServer is shutting down..\n" );
 
   PyObject * arg = NULL;
   
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
   
-  PyNAOModule::instance()->invokeCallback( "onSystemShutdown", arg );
+  PyPepperModule::instance()->invokeCallback( "onSystemShutdown", arg );
   
   PyGILState_Release( gstate );
 }
