@@ -14,6 +14,6 @@ qi_create_lib( pypepperserver
   SHARED
 )
 
-qi_use_lib(pypepperserver ALCOMMON ALVISION ALAUDIO pyridecore tinyxml )
+qi_use_lib(pypepperserver ALCOMMON ALVISION ALAUDIO pyridecore tinyxml crypto)
 # qi_create_bin(...)
 

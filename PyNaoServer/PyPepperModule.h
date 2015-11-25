@@ -20,7 +20,7 @@ public:
   static PyPepperModule * instance();
   
 private:
-  static PyPepperModule * s_pyNAOModule;
+  static PyPepperModule * s_pyPepperModule;
 
   PyPepperModule();
   PyObject * createPyModule();

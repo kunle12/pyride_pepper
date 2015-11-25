@@ -15,8 +15,6 @@
 #include <alcommon/alproxy.h>
 #include <alcommon/albroker.h>
 
-
-#include <alproxies/alsentinelproxy.h>
 #include <alproxies/alaudiodeviceproxy.h>
 #include <alvision/alvisiondefinitions.h>
 #include <althread/alcriticalsection.h>
@@ -81,8 +79,8 @@ bool NaoCam::initDevice()
   std::string GVMName = "Controller_GVM";
   
   try {
-    gvmName_ = videoProxy_->subscribeCamera( GVMName, AL::kTopCamera, AL::kQVGA, kYUV422InterlacedColorSpace,
-                                      /* kRGBColorSpace,*/ 5 );
+    gvmName_ = videoProxy_->subscribeCamera( GVMName, AL::kTopCamera, AL::kVGA, kYUV422ColorSpace,
+                                      /*kRGBColorSpace,*/ 5 );
   }
   catch (const ALError& e) {
     ERROR_MSG( "PyPepperServer: Could not register GVM to ALVideoDevice.\n" );
@@ -94,7 +92,8 @@ bool NaoCam::initDevice()
     return isInitialised_;
   }
  
-  INFO_MSG( "camera resolution = %d\n", videoProxy_->getResolution( gvmName_ ) ); 
+  INFO_MSG( "camera resolution = %d and is %s\n", videoProxy_->getResolution( gvmName_ ),
+      (videoProxy_->isCameraOpen(AL::kTopCamera) ? "open" : "closed") );
   packetStamp_ = 0;
   clientNo_ = 0;
   isStreaming_ = false;
@@ -123,7 +122,7 @@ void NaoCam::finiDevice()
 bool NaoCam::initWorkerThread()
 {
   if (pthread_create( &procThread_, &threadAttr_, videograb_thread, this ) ) {
-    ERROR_MSG( "Unable to create thread to grab Nao camera images.\n" );
+    ERROR_MSG( "Unable to create thread to grab Pepper camera images.\n" );
     return false;
   }
   return true;
@@ -188,7 +187,7 @@ bool NaoCam::getDefaultVideoSettings()
 {
   vSettings_.fps = 5;
   vSettings_.format = RGB;
-  vSettings_.resolution = 1; // 320x240
+  vSettings_.resolution = 2; // 320x240
   vSettings_.reserved = 0;
   
   this->setProcessParameters();
@@ -299,6 +298,8 @@ PyPepperServer::PyPepperServer( boost::shared_ptr<ALBroker> pBroker, const std::
   BIND_METHOD( PyPepperServer::onRightBumperPressed );
   functionName("onLeftBumperPressed", getName(), "Method called when the left bumper is pressed.");
   BIND_METHOD( PyPepperServer::onLeftBumperPressed );
+  functionName("onBackBumperPressed", getName(), "Method called when the back bumper is pressed.");
+  BIND_METHOD( PyPepperServer::onBackBumperPressed );
   functionName("onSingleChestButtonPressed", getName(), "Method called when the chest button pressed once.");
   BIND_METHOD( PyPepperServer::onSingleChestButtonPressed );
   functionName("onDoubleChestButtonPressed", getName(), "Method called when the chest button pressed twice.");
@@ -333,6 +334,7 @@ void PyPepperServer::init()
   }
   
   // disable default single chest button press
+  /*
   try {
     boost::shared_ptr<ALSentinelProxy> sentinelProxy = boost::shared_ptr<ALSentinelProxy>(new ALSentinelProxy( getParentBroker() ));
     sentinelProxy->enableDefaultActionSimpleClick( false );
@@ -340,13 +342,14 @@ void PyPepperServer::init()
     sentinelProxy->enableDefaultActionTripleClick( false );
   }
   catch (const ALError& e) {}
+  */
 
   PepperProxyManager::instance()->initWithBroker( getParentBroker(), memoryProxy_ );
   ServerDataProcessor::instance()->init( naoCams_, naoAudio_ );
   ServerDataProcessor::instance()->addCommandHandler( this );
   AppConfigManager::instance()->loadConfigFromFile( DEFAULT_CONFIGURATION_FILE );
   ServerDataProcessor::instance()->setClientID( AppConfigManager::instance()->clientID() );
-  ServerDataProcessor::instance()->setDefaultRobotInfo( NAO, AppConfigManager::instance()->startPosition() );
+  ServerDataProcessor::instance()->setDefaultRobotInfo( PEPPER, AppConfigManager::instance()->startPosition() );
   
   PythonServer::instance()->init( AppConfigManager::instance()->enablePythonConsole(), PyPepperModule::instance() );
   ServerDataProcessor::instance()->discoverConsoles();
@@ -354,11 +357,12 @@ void PyPepperServer::init()
   if (memoryProxy_) {
     INFO_MSG( "Nao memory proxy is successfully initialised.\n" );
     /* subscribe to sensor events */
-    memoryProxy_->subscribeToEvent( "RightBumperPressed", "PyPepperServer", "onRightBumperPressed" );
-    memoryProxy_->subscribeToEvent( "LeftBumperPressed", "PyPepperServer", "onLeftBumperPressed" );
-    memoryProxy_->subscribeToEvent( "ALSentinel/SimpleClickOccured", "PyPepperServer", "onSingleChestButtonPressed" );
-    memoryProxy_->subscribeToEvent( "ALSentinel/DoubleClickOccured", "PyPepperServer", "onDoubleChestButtonPressed" );
-    memoryProxy_->subscribeToEvent( "ALSentinel/TripleClickOccured", "PyPepperServer", "onTripleChestButtonPressed" );
+    memoryProxy_->subscribeToEvent( "Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value", "PyPepperServer", "onRightBumperPressed" );
+    memoryProxy_->subscribeToEvent( "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value", "PyPepperServer", "onLeftBumperPressed" );
+    memoryProxy_->subscribeToEvent( "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value", "PyPepperServer", "onBackBumperPressed" );
+    memoryProxy_->subscribeToEvent( "ALChestButton/SimpleClickOccurred", "PyPepperServer", "onSingleChestButtonPressed" );
+    memoryProxy_->subscribeToEvent( "ALChestButton/DoubleClickOccurred", "PyPepperServer", "onDoubleChestButtonPressed" );
+    memoryProxy_->subscribeToEvent( "ALChestButton/TripleClickOccurred", "PyPepperServer", "onTripleChestButtonPressed" );
     memoryProxy_->subscribeToEvent( "BatteryPowerPluggedChanged", "PyPepperServer", "onBatteryPowerPlugged" );
     memoryProxy_->subscribeToEvent( "BatteryChargeChanged", "PyPepperServer", "onBatteryChargeChanged" );
   }
@@ -384,11 +388,12 @@ void PyPepperServer::fini()
 
   /*
   if (memoryProxy_) {
-    memoryProxy_->unsubscribeToEvent( "RightBumperPressed", getName() );
-    memoryProxy_->unsubscribeToEvent( "LeftBumperPressed", getName() );
-    memoryProxy_->unsubscribeToEvent( "ALSentinel/SimpleClickOccured", getName() );
-    memoryProxy_->unsubscribeToEvent( "ALSentinel/DoubleClickOccured", getName() );
-    memoryProxy_->unsubscribeToEvent( "ALSentinel/TripleClickOccured", getName() );
+    memoryProxy_->unsubscribeToEvent( "Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value", getName() );
+    memoryProxy_->unsubscribeToEvent( "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value", getName() );
+    memoryProxy_->unsubscribeToEvent( "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value", getName() );
+    memoryProxy_->unsubscribeToEvent( "ALChestButton/SimpleClickOccurred", getName() );
+    memoryProxy_->unsubscribeToEvent( "ALChestButton/DoubleClickOccurred", getName() );
+    memoryProxy_->unsubscribeToEvent( "ALChestButton/TripleClickOccurred", getName() );
     memoryProxy_.reset();
   }*/
 }
@@ -454,7 +459,7 @@ void PyPepperServer::onRightBumperPressed()
   /**
    * Check that the bumper is pressed.
    */
-  float stat =  memoryProxy_->getData( "RightBumperPressed" );
+  float stat =  memoryProxy_->getData( "Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value" );
   if (stat  > 0.5f) {
     PyObject * arg = NULL;
     
@@ -477,7 +482,7 @@ void PyPepperServer::onLeftBumperPressed()
   /**
    * Check that the bumper is pressed.
    */
-  float stat =  memoryProxy_->getData( "LeftBumperPressed" );
+  float stat =  memoryProxy_->getData( "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value" );
   if (stat  > 0.5f) {
     PyObject * arg = NULL;
     
@@ -489,6 +494,29 @@ void PyPepperServer::onLeftBumperPressed()
     PyPepperModule::instance()->invokeCallback( "onBumperPressed", arg );
     Py_DECREF( arg );
     
+    PyGILState_Release( gstate );
+  }
+}
+
+void PyPepperServer::onBackBumperPressed()
+{
+  ALCriticalSection section( callbackMutex_ );
+
+  /**
+   * Check that the bumper is pressed.
+   */
+  float stat =  memoryProxy_->getData( "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value" );
+  if (stat  > 0.5f) {
+    PyObject * arg = NULL;
+
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
+
+    arg = Py_BuildValue( "(s)", "left" );
+
+    PyPepperModule::instance()->invokeCallback( "onBumperPressed", arg );
+    Py_DECREF( arg );
+
     PyGILState_Release( gstate );
   }
 }

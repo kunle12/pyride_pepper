@@ -22,6 +22,10 @@
 #include <alproxies/alledsproxy.h>
 #include <alproxies/alrobotpostureproxy.h>
 #include <alproxies/almemoryproxy.h>
+#include <alproxies/almemoryproxy.h>
+#include <alproxies/alnavigationproxy.h>
+#include <alproxies/alnotificationmanagerproxy.h>
+#include <alproxies/alrechargeproxy.h>
 
 namespace pyride {
 
@@ -37,29 +41,24 @@ typedef enum {
   PINK
 } NAOLedColour;
 
-enum { // we are dealing with standard soccer NAO only.
+enum { // pepper joints
   HEAD_YAW = 0,
   HEAD_PITCH,
   L_SHOULDER_PITCH,
   L_SHOULDER_ROLL,
   L_ELBOW_YAW,
   L_ELBOW_ROLL,
-  L_HIP_YAW_PITCH,
-  L_HIP_ROLL,
-  L_HIP_PITCH,
-  L_KNEE_PITCH,
-  L_ANKLE_PITCH,
-  L_ANKLE_ROLL,
-  R_HIP_YAW_PITCH,
-  R_HIP_ROLL,
-  R_HIP_PITCH,
-  R_KNEE_PITCH,
-  R_ANKLE_PITCH,
-  R_ANKLE_ROLL,
+  L_WRIST_YAW,
+  L_HAND,
+  HIP_ROLL,
+  HIP_PITCH,
+  KNEE_PITCH,
   R_SHOULDER_PITCH,
   R_SHOULDER_ROLL,
   R_ELBOW_YAW,
-  R_ELBOW_ROLL
+  R_ELBOW_ROLL,
+  R_WRIST_YAW,
+  R_HAND
 };
 
 class PepperProxyManager
@@ -95,13 +94,13 @@ public:
                         bool useSensor = false );
   void getArmJointsPos( bool isLeft, std::vector<float> & positions,
                        bool useSensor = false );
-  void getLegJointsPos( bool isLeft, std::vector<float> & positions,
+  void getLegJointsPos( std::vector<float> & positions,
                        bool useSensor = false );
   
   void setArmStiffness( bool isLeft, const float stiff );
   void setHeadStiffness( const float stiff );
   void setBodyStiffness( const float stiff );
-  void setLegStiffness( bool isLeft, const float stiff );
+  void setLegStiffness( const float stiff );
 
   bool moveArmWithJointPos( bool isLeft, const std::vector<float> & positions,
                            float frac_speed = 0.5 );
@@ -109,18 +108,21 @@ public:
   void moveArmWithJointTrajectory( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
                                                    std::vector<float> & times_to_reach, bool inpost = false );
 
-  bool moveLegWithJointPos( bool isLeft, const std::vector<float> & positions,
+  bool moveLegWithJointPos( const std::vector<float> & positions,
                            float frac_speed = 0.5 );
 
   bool moveBodyWithJointPos( const std::vector<float> & positions,
                             float frac_speed = 0.5 );
 
-  void sit( bool relax = false );
   void stand( bool init = false );
   void crouch();
-  void lyingDown( bool bellyUp = true );
 
-  bool moveBodyTo( const RobotPose & pose, bool cancelPreviousMove = false );
+  void gotoStation();
+  void leaveStation();
+
+  bool moveBodyTo( const RobotPose & pose, float duration = 5.0, bool cancelPreviousMove = true );
+
+  bool navigateBodyTo( const RobotPose & pose, bool cancelPreviousMove = true );
 
   void updateBodyPose( const RobotPose & pose );
   
@@ -140,6 +142,7 @@ private:
   boost::shared_ptr<ALAudioPlayerProxy> audioPlayerProxy_;
   boost::shared_ptr<ALAudioDeviceProxy> audioDeviceProxy_;
   boost::shared_ptr<ALMemoryProxy> memoryProxy_;
+  boost::shared_ptr<ALNavigationProxy> navigationProxy_;
   
   //motion related data
   ALValue jointLimits_;

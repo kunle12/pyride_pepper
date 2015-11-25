@@ -310,7 +310,7 @@ void VideoDevice::setProcessParameters()
     outBuffer_ = NULL;
     outBufferSize_ = 0;
 
-    jpeg_databuffer_free( &cinfo_ );
+    //jpeg_databuffer_free( &cinfo_ );
     jpeg_destroy_compress( &cinfo_ );
   }
   outBufferSize_ = imageWidth_ * imageHeight_ * 3;
@@ -318,7 +318,7 @@ void VideoDevice::setProcessParameters()
 
   cinfo_.err = jpeg_std_error( &jerr_ );
   jpeg_create_compress( &cinfo_ );
-  jpeg_databuffer_dest( &cinfo_ );
+  //jpeg_databuffer_dest( &cinfo_ );
   cinfo_.image_width = imageWidth_;
   cinfo_.image_height = imageHeight_;
   cinfo_.input_components = 3;
@@ -451,6 +451,9 @@ int VideoDevice::compressToJPEG( const unsigned char * imageData, const int imag
 {
   JSAMPROW rowPtr[1];
   unsigned char * data = (unsigned char *)imageData;
+
+  unsigned long compressedDataSize = 0;
+  jpeg_mem_dest( &cinfo_, &compressedData, &compressedDataSize );
   jpeg_start_compress( &cinfo_, TRUE );
   
   int rowStride = imageWidth_ * 3;
@@ -465,8 +468,7 @@ int VideoDevice::compressToJPEG( const unsigned char * imageData, const int imag
   
   jpeg_finish_compress( &cinfo_ );
   
-  int compressedDataSize;
-  compressedData = get_jpeg_data_and_size( &cinfo_, &compressedDataSize );
+  //compressedData = get_jpeg_data_and_size( &cinfo_, &compressedDataSize );
   
   return compressedDataSize;
 }

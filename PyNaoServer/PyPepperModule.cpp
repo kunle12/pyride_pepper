@@ -25,26 +25,24 @@ PyDoc_STRVAR( PyPepper_doc, \
 
 PyPepperModule * PyPepperModule::s_pyPepperModule = NULL;
 
-static const char *kLeftArmKWlist[] = { "l_shoulder_pitch_joint", "l_shoulder_roll_joint", "l_elbow_yaw_joint", "l_elbow_roll_joint", "frac_max_speed", NULL };
-static const char *kRightArmKWlist[] = { "r_shoulder_pitch_joint", "r_shoulder_roll_joint", "r_elbow_yaw_joint", "r_elbow_roll_joint", "frac_max_speed", NULL };
-
-static const char *kLeftLegKWlist[] = { "l_hip_yaw_pitch_joint", "l_hip_roll_joint", "l_hip_pitch_joint", "l_knee_pitch_joint", "l_ankle_pitch_joint",
-    "l_ankle_roll_joint", "frac_max_speed", NULL };
-static const char *kRightLegKWlist[] = { "r_hip_yaw_pitch_joint", "r_hip_roll_joint", "r_hip_pitch_joint", "r_knee_pitch_joint", "r_ankle_pitch_joint",
-    "r_ankle_roll_joint", "frac_max_speed", NULL };
+static const char *kLeftArmKWlist[] = { "l_shoulder_pitch_joint", "l_shoulder_roll_joint",
+		"l_elbow_yaw_joint", "l_elbow_roll_joint", "l_wrist_yaw_joint", "frac_max_speed", NULL };
+static const char *kRightArmKWlist[] = { "r_shoulder_pitch_joint", "r_shoulder_roll_joint",
+		"r_elbow_yaw_joint", "r_elbow_roll_joint", "r_wrist_yaw_joint", "frac_max_speed", NULL };
+static const char *kLegKWlist[] = { "hip_roll_joint", "hip_pitch_joint", "knee_pitch_joint",
+    "frac_max_speed", NULL };
 
 static const char *kBodyKWlist[] = { "head_yaw_joint", "head_pitch_joint",
   "l_shoulder_pitch_joint", "l_shoulder_roll_joint", "l_elbow_yaw_joint",
-  "l_elbow_roll_joint", "l_hip_yaw_pitch_joint", "l_hip_roll_joint", "l_hip_pitch_joint",
-  "l_knee_pitch_joint", "l_ankle_pitch_joint", "l_ankle_roll_joint"
-  "r_hip_yaw_pitch_joint", "r_hip_roll_joint", "r_hip_pitch_joint", "r_knee_pitch_joint",
-  "r_ankle_pitch_joint", "r_ankle_roll_joint", "r_shoulder_pitch_joint",
-  "r_shoulder_roll_joint", "r_elbow_yaw_joint", "r_elbow_roll_joint",
+  "l_elbow_roll_joint", "l_wrist_yaw_joint", "l_hand_joint",
+  "hip_roll_joint", "hip_pitch_joint", "knee_pitch_joint",
+  "r_shoulder_pitch_joint", "r_shoulder_roll_joint", "r_elbow_yaw_joint",
+  "r_elbow_roll_joint", "r_wrist_yaw_joint", "r_hand_joint",
   "frac_max_speed", NULL };
 
 // helper function
 
-static bool colourStr2ID( const char * colourStr, PepperLedColour & colourID )
+static bool colourStr2ID( const char * colourStr, NAOLedColour & colourID )
 {
   if (!colourStr)
     return false;
@@ -139,7 +137,7 @@ static PyObject * PyModule_sendTeamMessage( PyObject *self, PyObject * args )
   Py_RETURN_NONE;
 }
 
-static PyObject * PyModule_NaoSayWithVolume( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperSayWithVolume( PyObject * self, PyObject * args )
 {
   float volume = 0.0;
   char * dataStr = NULL;
@@ -172,7 +170,7 @@ static PyObject * PyModule_NaoSayWithVolume( PyObject * self, PyObject * args )
  *  \param bool is_absolute. Optional. True = inputs represent absolute value for the new head position; False = inputs represent relative head position w.r.t. to the current head position.
  *  \return None.
  */
-static PyObject * PyModule_NaoMoveHeadTo( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperMoveHeadTo( PyObject * self, PyObject * args )
 {
   float yaw = 0.0;
   float pitch = 0.0;
@@ -197,7 +195,7 @@ static PyObject * PyModule_NaoMoveHeadTo( PyObject * self, PyObject * args )
   Py_RETURN_NONE;
 }
 
-static PyObject * PyModule_NaoUpdateHeadPos( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperUpdateHeadPos( PyObject * self, PyObject * args )
 {
   double yaw = 0.0;
   double pitch = 0.0;
@@ -212,31 +210,25 @@ static PyObject * PyModule_NaoUpdateHeadPos( PyObject * self, PyObject * args )
   Py_RETURN_NONE;
 }
 
-/*! \fn sit(is_relax)
+/*! \fn gotoStation()
  *  \memberof PyPepper
- *  \brief Move the robot into a sitting pose.
- *  \param bool is_relax. Optional. True = Relaxed sitting pose (stiffness is off); False = Non-relaxed sitting pose.
+ *  \brief Move the robot into its charging station.
  *  \return None.
  */
-static PyObject * PyModule_NaoSit( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperGotoStation( PyObject * self )
 {
-  PyObject * isYesObj = NULL;
-  bool isYes = false;
+  PepperProxyManager::instance()->gotoStation();
+  Py_RETURN_NONE;
+}
 
-  if (!PyArg_ParseTuple( args, "|O", &isYesObj )) {
-    // PyArg_ParseTuple will set the error status.
-    return NULL;
-  }
-  if (isYesObj) {
-    if (PyBool_Check( isYesObj )) {
-      isYes = PyObject_IsTrue( isYesObj );
-    }
-    else {
-      PyErr_Format( PyExc_ValueError, "PyPepper.sit: the parameter must be a boolean!" );
-      return NULL;
-    }
-  }
-  PepperProxyManager::instance()->sit( isYes );
+/*! \fn leaveStation()
+ *  \memberof PyPepper
+ *  \brief Move the robot off its charging station.
+ *  \return None.
+ */
+static PyObject * PyModule_PepperLeaveStation( PyObject * self )
+{
+  PepperProxyManager::instance()->leaveStation();
   Py_RETURN_NONE;
 }
 
@@ -246,7 +238,7 @@ static PyObject * PyModule_NaoSit( PyObject * self, PyObject * args )
  *  \param bool is_init. Optional. True = A standing pose ready for walk; False = Default standing pose.
  *  \return None.
  */
-static PyObject * PyModule_NaoStand( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperStand( PyObject * self, PyObject * args )
 {
   PyObject * isYesObj = NULL;
   bool isYes = false;
@@ -268,32 +260,62 @@ static PyObject * PyModule_NaoStand( PyObject * self, PyObject * args )
   Py_RETURN_NONE;
 }
 
-/*! \fn lyingDown(is_bellyup)
+/*! \fn navigateBodyTo(target_position)
  *  \memberof PyPepper
- *  \brief Move the robot into a lying down pose.
- *  \param bool is_bellyup. Optional. True = belly up; False = belly down.
- *  \return None.
+ *  \brief Navigate Pepper body to a specified position.
+ *  \param tuple target_position. Position w.r.t the current pose in the form of (x,y).
+ *  \return bool. True == navigation successful; False == navigation failed.
  */
-static PyObject * PyModule_NaoLyingDown( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperNavigateBodyTo( PyObject * self, PyObject * args )
 {
-  PyObject * isYesObj = NULL;
-  bool isYes = false;
+  float xcoord = 0.0;
+  float ycoord = 0.0;
 
-  if (!PyArg_ParseTuple( args, "|O", &isYesObj )) {
+  if (!PyArg_ParseTuple( args, "ff", &xcoord, &ycoord )) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.navigateBodyTo: input position parameters." );
+    return NULL;
+  }
+
+  RobotPose pose;
+  pose.x = xcoord;
+  pose.y = ycoord;
+  pose.theta = 0.0;
+
+  if (PepperProxyManager::instance()->navigateBodyTo( pose ))
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
+}
+
+/*! \fn moveBodyTo(x,y,theta,best_time)
+ *  \memberof PyPepper
+ *  \brief Move the PR2 body to a pose at (x,y,theta) w.r.t the current pose.
+ *  \param float x. X coordinate w.r.t. the current pose.
+ *  \param float y. Y coordinate w.r.t. the current pose.
+ *  \param float theta. Angular position w.r.t. the current pose.
+ *  \param float best_time. Optional, ask the robot try its best to reach the input pose in this time frame.
+ *  \return bool. True == valid command; False == invalid command.
+ */
+static PyObject * PyModule_PepperMoveBodyTo( PyObject * self, PyObject * args )
+{
+  float xcoord = 0.0;
+  float ycoord = 0.0;
+  float theta = 0.0;
+  float bestTime = 5.0; //seconds
+
+  if (!PyArg_ParseTuple( args, "fff|f", &xcoord, &ycoord, &theta, &bestTime )) {
     // PyArg_ParseTuple will set the error status.
     return NULL;
   }
-  if (isYesObj) {
-    if (PyBool_Check( isYesObj )) {
-      isYes = PyObject_IsTrue( isYesObj );
-    }
-    else {
-      PyErr_Format( PyExc_ValueError, "PyPepper.lyingDown: the parameter must be a boolean!" );
-      return NULL;
-    }
-  }
-  PepperProxyManager::instance()->lyingDown( isYes );
-  Py_RETURN_NONE;
+  RobotPose pose;
+  pose.x = xcoord;
+  pose.y = ycoord;
+  pose.theta = theta;
+
+  if (PepperProxyManager::instance()->moveBodyTo( pose, bestTime ))
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
 }
 
 /*! \fn crouch()
@@ -302,7 +324,7 @@ static PyObject * PyModule_NaoLyingDown( PyObject * self, PyObject * args )
  *  \return None.
  *  \note Stiffness will be turned off.
  */
-static PyObject * PyModule_NaoCrouch( PyObject * self )
+static PyObject * PyModule_PepperCrouch( PyObject * self )
 {
   PepperProxyManager::instance()->crouch();
   Py_RETURN_NONE;
@@ -313,7 +335,7 @@ static PyObject * PyModule_NaoCrouch( PyObject * self )
  *  \brief Get the current robot head yaw and pitch in radian.
  *  \return tuple(head_yaw, head_pitch)
  */
-static PyObject * PyModule_NaoGetHeadPos( PyObject * self )
+static PyObject * PyModule_PepperGetHeadPos( PyObject * self )
 {
   float yaw = 0.0;
   float pitch = 0.0;
@@ -332,7 +354,7 @@ static PyObject * PyModule_NaoGetHeadPos( PyObject * self )
  *  \param float stiffness. Must be between [0.0,1.0].
  *  \return None.
  */
-static PyObject * PyModule_NaoSetHeadStiffness( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperSetHeadStiffness( PyObject * self, PyObject * args )
 {
   float stiff = 0.0;
 
@@ -356,7 +378,7 @@ static PyObject * PyModule_NaoSetHeadStiffness( PyObject * self, PyObject * args
  *  \param float stiffness. Must be between [0.0,1.0].
  *  \return None.
  */
-static PyObject * PyModule_NaoSetBodyStiffness( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperSetBodyStiffness( PyObject * self, PyObject * args )
 {
   float stiff = 0.0;
 
@@ -381,7 +403,7 @@ static PyObject * PyModule_NaoSetBodyStiffness( PyObject * self, PyObject * args
  *  \param float stiffness. Must be between [0.0,1.0].
  *  \return None.
  */
-static PyObject * PyModule_NaoSetArmStiffness( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperSetArmStiffness( PyObject * self, PyObject * args )
 {
   PyObject * isYesObj = NULL;
   float stiff = 0.0;
@@ -411,26 +433,21 @@ static PyObject * PyModule_NaoSetArmStiffness( PyObject * self, PyObject * args 
  *  \param float stiffness. Must be between [0.0,1.0].
  *  \return None.
  */
-static PyObject * PyModule_NaoSetLegStiffness( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperSetLegStiffness( PyObject * self, PyObject * args )
 {
-  PyObject * isYesObj = NULL;
   float stiff = 0.0;
 
-  if (!PyArg_ParseTuple( args, "Of", &isYesObj, &stiff )) {
+  if (!PyArg_ParseTuple( args, "f", &stiff )) {
     // PyArg_ParseTuple will set the error status.
     return NULL;
   }
 
-  if (!PyBool_Check( isYesObj )) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.setLegStiffness: the first parameter must be a boolean!" );
-    return NULL;
-  }
   if (stiff < 0.0 || stiff > 1.0) {
     PyErr_Format( PyExc_ValueError, "PyPepper.setLegStiffness: the stiffness input must be within the range of [0.0, 1.0]!" );
     return NULL;
   }
 
-  PepperProxyManager::instance()->setLegStiffness( PyObject_IsTrue( isYesObj ), stiff );
+  PepperProxyManager::instance()->setLegStiffness( stiff );
   Py_RETURN_NONE;
 }
 
@@ -441,7 +458,7 @@ static PyObject * PyModule_NaoSetLegStiffness( PyObject * self, PyObject * args 
  *  \param bool is_blocking. Optional. True = blocking call; False = unblocking call.
  *  \return None.
  */
-static PyObject * PyModule_NaoMoveArmWithJointTraj( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperMoveArmWithJointTraj( PyObject * self, PyObject * args )
 {
   PyObject * trajObj = NULL;
   PyObject * isYesObj = NULL;
@@ -541,22 +558,22 @@ static PyObject * PyModule_NaoMoveArmWithJointTraj( PyObject * self, PyObject * 
  *  \param float frac_max_speed. Fraction of the maximum motor speed.
  *  \return None.
  */
-static PyObject * PyModule_NaoMoveArmWithJointPos( PyObject * self, PyObject * args, PyObject * keywds )
+static PyObject * PyModule_PepperMoveArmWithJointPos( PyObject * self, PyObject * args, PyObject * keywds )
 {
-  float s_p_j, s_r_j, e_y_j, e_r_j;
+  float s_p_j, s_r_j, e_y_j, e_r_j, w_y_j;
   float frac_max_speed = 0.5;
 
   bool isLeftArm = false;
 
-  if (PyArg_ParseTupleAndKeywords( args, keywds, "ffff|f", (char**)kLeftArmKWlist,
-                                  &s_p_j, &s_r_j, &e_y_j, &e_r_j, &frac_max_speed ))
+  if (PyArg_ParseTupleAndKeywords( args, keywds, "fffff|f", (char**)kLeftArmKWlist,
+                                  &s_p_j, &s_r_j, &e_y_j, &e_r_j, &w_y_j, &frac_max_speed ))
   {
     isLeftArm = true;
   }
   else {
     PyErr_Clear();
-    if (!PyArg_ParseTupleAndKeywords( args, keywds, "ffff|f", (char**)kRightArmKWlist,
-                                     &s_p_j, &s_r_j, &e_y_j, &e_r_j, &frac_max_speed ))
+    if (!PyArg_ParseTupleAndKeywords( args, keywds, "fffff|f", (char**)kRightArmKWlist,
+                                     &s_p_j, &s_r_j, &e_y_j, &e_r_j, &w_y_j, &frac_max_speed ))
     {
       // PyArg_ParseTuple will set the error status.
       return NULL;
@@ -568,11 +585,12 @@ static PyObject * PyModule_NaoMoveArmWithJointPos( PyObject * self, PyObject * a
     return NULL;
   }
 
-  std::vector<float> positions( 4, 0.0 );
+  std::vector<float> positions( 5, 0.0 );
   positions[0] = s_p_j;
   positions[1] = s_r_j;
   positions[2] = e_y_j;
   positions[3] = e_r_j;
+  positions[4] = w_y_j;
 
   PepperProxyManager::instance()->moveArmWithJointPos( isLeftArm, positions, frac_max_speed );
   Py_RETURN_NONE;
@@ -586,28 +604,16 @@ static PyObject * PyModule_NaoMoveArmWithJointPos( PyObject * self, PyObject * a
  *  \param float frac_max_speed. Fraction of the maximum motor speed.
  *  \return None.
  */
-static PyObject * PyModule_NaoMoveLegWithJointPos( PyObject * self, PyObject * args, PyObject * keywds )
+static PyObject * PyModule_PepperMoveLegWithJointPos( PyObject * self, PyObject * args, PyObject * keywds )
 {
-  float h_y_p_j, h_r_j, h_p_j, k_p_j, a_p_j, a_r_j;
+  float h_r_j, h_p_j, k_p_j;
   float frac_max_speed = 0.5;
 
-  bool isLeftLeg = false;
-
-  if (PyArg_ParseTupleAndKeywords( args, keywds, "ffffff|f", (char**)kLeftLegKWlist,
-                                  &h_y_p_j, &h_r_j, &h_p_j, &k_p_j, &a_p_j, &a_r_j,
-                                  &frac_max_speed ))
+  if (!PyArg_ParseTupleAndKeywords( args, keywds, "fff|f", (char**)kLegKWlist,
+                                  &h_r_j, &h_p_j, &k_p_j, &frac_max_speed ))
   {
-    isLeftLeg = true;
-  }
-  else {
-    PyErr_Clear();
-    if (!PyArg_ParseTupleAndKeywords( args, keywds, "ffffff|f", (char**)kRightLegKWlist,
-                                     &h_y_p_j, &h_r_j, &h_p_j, &k_p_j, &a_p_j, &a_r_j,
-                                     &frac_max_speed ))
-    {
-      // PyArg_ParseTuple will set the error status.
-      return NULL;
-    }
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
   }
 
   if (frac_max_speed > 1.0 || frac_max_speed < 0.0) {
@@ -615,15 +621,12 @@ static PyObject * PyModule_NaoMoveLegWithJointPos( PyObject * self, PyObject * a
     return NULL;
   }
 
-  std::vector<float> positions( 6, 0.0 );
-  positions[0] = h_y_p_j;
-  positions[1] = h_r_j;
-  positions[2] = h_p_j;
-  positions[3] = k_p_j;
-  positions[4] = a_p_j;
-  positions[5] = a_r_j;
+  std::vector<float> positions( 3, 0.0 );
+  positions[0] = h_r_j;
+  positions[1] = h_p_j;
+  positions[2] = k_p_j;
 
-  PepperProxyManager::instance()->moveLegWithJointPos( isLeftLeg, positions, frac_max_speed );
+  PepperProxyManager::instance()->moveLegWithJointPos( positions, frac_max_speed );
   Py_RETURN_NONE;
 }
 
@@ -635,22 +638,20 @@ static PyObject * PyModule_NaoMoveLegWithJointPos( PyObject * self, PyObject * a
  *  \param float frac_max_speed. Fraction of the maximum motor speed.
  *  \return None.
  */
-static PyObject * PyModule_NaoMoveBodyWithJointPos( PyObject * self, PyObject * args, PyObject * keywds )
+static PyObject * PyModule_PepperMoveBodyWithJointPos( PyObject * self, PyObject * args, PyObject * keywds )
 {
-  float l_h_y_p_j, l_h_r_j, l_h_p_j, l_k_p_j, l_a_p_j, l_a_r_j;
-  float r_h_y_p_j, r_h_r_j, r_h_p_j, r_k_p_j, r_a_p_j, r_a_r_j;
-  float l_s_p_j, l_s_r_j, l_e_y_j, l_e_r_j;
-  float r_s_p_j, r_s_r_j, r_e_y_j, r_e_r_j;
+  float bh_r_j, bh_p_j, bk_p_j;
+  float l_s_p_j, l_s_r_j, l_e_y_j, l_e_r_j, l_w_y_j, l_hand_j;
+  float r_s_p_j, r_s_r_j, r_e_y_j, r_e_r_j, r_w_y_j, r_hand_j;
   float h_y_j, h_p_j;
 
   float frac_max_speed = 0.5;
 
-  if (!PyArg_ParseTupleAndKeywords( args, keywds, "ffffffffffffffffffffff|f",
+  if (!PyArg_ParseTupleAndKeywords( args, keywds, "fffffffffffffffff|f",
                                    (char**)kBodyKWlist, &h_y_j, &h_p_j,
-                                   &l_s_p_j, &l_s_r_j, &l_e_y_j, &l_e_r_j,
-                                   &l_h_y_p_j, &l_h_r_j, &l_h_p_j, &l_k_p_j, &l_a_p_j, &l_a_r_j,
-                                   &r_h_y_p_j, &r_h_r_j, &r_h_p_j, &r_k_p_j, &r_a_p_j, &r_a_r_j,
-                                   &r_s_p_j, &r_s_r_j, &r_e_y_j, &r_e_r_j,
+                                   &l_s_p_j, &l_s_r_j, &l_e_y_j, &l_e_r_j, &l_w_y_j, &l_hand_j,
+                                   &bh_r_j, &bh_p_j, &bk_p_j,
+                                   &r_s_p_j, &r_s_r_j, &r_e_y_j, &r_e_r_j, &r_w_y_j, &r_hand_j,
                                    &frac_max_speed ))
   {
     // PyArg_ParseTuple will set the error status.
@@ -662,7 +663,7 @@ static PyObject * PyModule_NaoMoveBodyWithJointPos( PyObject * self, PyObject * 
     return NULL;
   }
 
-  std::vector<float> positions( 22, 0.0 );
+  std::vector<float> positions( 17, 0.0 );
   positions[0] = h_y_j;
   positions[1] = h_p_j;
 
@@ -670,25 +671,19 @@ static PyObject * PyModule_NaoMoveBodyWithJointPos( PyObject * self, PyObject * 
   positions[3] = l_s_r_j;
   positions[4] = l_e_y_j;
   positions[5] = l_e_r_j;
+  positions[6] = l_w_y_j;
+  positions[7] = l_hand_j;
 
-  positions[6] = l_h_y_p_j;
-  positions[7] = l_h_r_j;
-  positions[8] = l_h_p_j;
-  positions[9] = l_k_p_j;
-  positions[10] = l_a_p_j;
-  positions[11] = l_a_r_j;
+  positions[8] = bh_r_j;
+  positions[9] = bh_p_j;
+  positions[10] = bk_p_j;
 
-  positions[12] = r_h_y_p_j;
-  positions[13] = r_h_r_j;
-  positions[14] = r_h_p_j;
-  positions[15] = r_k_p_j;
-  positions[16] = r_a_p_j;
-  positions[17] = r_a_r_j;
-
-  positions[18] = r_s_p_j;
-  positions[19] = r_s_r_j;
-  positions[20] = r_e_y_j;
-  positions[21] = r_e_r_j;
+  positions[11] = r_s_p_j;
+  positions[12] = r_s_r_j;
+  positions[13] = r_e_y_j;
+  positions[14] = r_e_r_j;
+  positions[15] = r_w_y_j;
+  positions[16] = r_hand_j;
 
   PepperProxyManager::instance()->moveBodyWithJointPos( positions, frac_max_speed );
   Py_RETURN_NONE;
@@ -701,7 +696,7 @@ static PyObject * PyModule_NaoMoveBodyWithJointPos( PyObject * self, PyObject * 
  *  \return dictionary(arm_joint_positions).
  *  \note Returned dictionary use joint names as keys.
  */
-static PyObject * PyModule_NaoGetArmJointPositions( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperGetArmJointPositions( PyObject * self, PyObject * args )
 {
   PyObject * armsel = NULL;
   PyObject * usbObj = NULL;
@@ -742,49 +737,40 @@ static PyObject * PyModule_NaoGetArmJointPositions( PyObject * self, PyObject * 
   return retObj;
 }
 
-/*! \fn getLegJointPositions(left_leg)
+/*! \fn getLegJointPositions()
  *  \memberof PyPepper
- *  \brief Get the current joint positions of one of the Pepper left.
- *  \param bool left_leg. True for left leg; False for right leg.
+ *  \brief Get the current joint positions of the Pepper leg.
  *  \return dictionary(leg_joint_positions).
  *  \note Returned dictionary use joint names as keys.
  */
-static PyObject * PyModule_NaoGetLegJointPositions( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperGetLegJointPositions( PyObject * self, PyObject * args )
 {
-  PyObject * legsel = NULL;
   PyObject * usbObj = NULL;
 
   bool useSensor = false;
 
-  if (!PyArg_ParseTuple( args, "O|O", &legsel, &usbObj )) {
+  if (!PyArg_ParseTuple( args, "|O", &usbObj )) {
     // PyArg_ParseTuple will set the error status.
     return NULL;
   }
-
-  if (!PyBool_Check( legsel )) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.getLegJointPositions: first input parameter must be a boolean!" );
-    return NULL;
-  }
-
-  bool isLeftLeg = PyObject_IsTrue( legsel );
 
   if (usbObj) {
     if (PyBool_Check( usbObj )) {
       useSensor = PyObject_IsTrue( usbObj );
     }
     else {
-      PyErr_Format( PyExc_ValueError, "PyPepper.getLegJointPositions: second input parameter must be a boolean!" );
+      PyErr_Format( PyExc_ValueError, "PyPepper.getLegJointPositions: input parameter must be a boolean!" );
       return NULL;
     }
   }
 
-  std::vector<float> positions( 6, 0.0 );
+  std::vector<float> positions( 3, 0.0 );
 
-  PepperProxyManager::instance()->getLegJointsPos( isLeftLeg, positions, useSensor );
+  PepperProxyManager::instance()->getLegJointsPos( positions, useSensor );
   PyObject * retObj = PyDict_New();
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 3; i++) {
     PyObject * numObj = PyFloat_FromDouble( positions.at( i ) );
-    PyDict_SetItemString( retObj, (isLeftLeg ? kLeftLegKWlist[i] : kRightLegKWlist[i]), numObj );
+    PyDict_SetItemString( retObj, kLegKWlist[i], numObj );
     Py_DECREF( numObj );
   }
   return retObj;
@@ -797,7 +783,7 @@ static PyObject * PyModule_NaoGetLegJointPositions( PyObject * self, PyObject * 
  *  \return dictionary(body_joint_positions).
  *  \note Returned dictionary use joint names as keys.
  */
-static PyObject * PyModule_NaoGetBodyJointPositions( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperGetBodyJointPositions( PyObject * self, PyObject * args )
 {
   PyObject * usbObj = NULL;
 
@@ -840,7 +826,7 @@ static PyObject * PyModule_NaoGetBodyJointPositions( PyObject * self, PyObject *
  *  \param str file_name. Audio file path. Must be a full path.
  *  \return int audio ID.
  */
-static PyObject * PyModule_NaoLoadAudioFile( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperLoadAudioFile( PyObject * self, PyObject * args )
 {
   char * text = NULL;
   int audioID = -1;
@@ -865,7 +851,7 @@ static PyObject * PyModule_NaoLoadAudioFile( PyObject * self, PyObject * args )
  *  \param int audio_id. Loaded audio file ID.
  *  \return None.
  */
-static PyObject * PyModule_NaoUnloadAudioFile( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperUnloadAudioFile( PyObject * self, PyObject * args )
 {
   int audioID = 0;
 
@@ -884,13 +870,13 @@ static PyObject * PyModule_NaoUnloadAudioFile( PyObject * self, PyObject * args 
  *  \brief Unload all audio from the robot system.
  *  \return None.
  */
-static PyObject * PyModule_NaoUnloadAllAudioFiles( PyObject * self )
+static PyObject * PyModule_PepperUnloadAllAudioFiles( PyObject * self )
 {
   PepperProxyManager::instance()->unloadAllAudioFiles();
   Py_RETURN_NONE;
 }
 
-static PyObject * PyModule_NaoPlayWebAudio( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperPlayWebAudio( PyObject * self, PyObject * args )
 {
   char * text = NULL;
 
@@ -910,7 +896,7 @@ static PyObject * PyModule_NaoPlayWebAudio( PyObject * self, PyObject * args )
  *  \param int audio_id. Loaded audio file ID.
  *  \return None.
  */
-static PyObject * PyModule_NaoPlayAudioID( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperPlayAudioID( PyObject * self, PyObject * args )
 {
   int audioID = 0;
   PyObject * toBlockObj = NULL;
@@ -934,7 +920,7 @@ static PyObject * PyModule_NaoPlayAudioID( PyObject * self, PyObject * args )
  *  \brief Get the current master audio volume.
  *  \return int audio volume between [0,100].
  */
-static PyObject * PyModule_NaoGetAudioVolume( PyObject * self )
+static PyObject * PyModule_PepperGetAudioVolume( PyObject * self )
 {
   int volume = PepperProxyManager::instance()->getAudioVolume();
   return Py_BuildValue( "i", volume );
@@ -946,7 +932,7 @@ static PyObject * PyModule_NaoGetAudioVolume( PyObject * self )
  *  \param int volume. Must be between [0,100]
  *  \return None.
  */
-static PyObject * PyModule_NaoSetAudioVolume( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperSetAudioVolume( PyObject * self, PyObject * args )
 {
   int volume = 50;
 
@@ -969,7 +955,7 @@ static PyObject * PyModule_NaoSetAudioVolume( PyObject * self, PyObject * args )
  *  \param int audio_id. Audo file ID.
  *  \return None.
  */
-static PyObject * PyModule_NaoPauseAudioID( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperPauseAudioID( PyObject * self, PyObject * args )
 {
   int audioID = 0;
 
@@ -989,7 +975,7 @@ static PyObject * PyModule_NaoPauseAudioID( PyObject * self, PyObject * args )
  *  \return None.
  */
 /**@}*/
-static PyObject * PyModule_NaoStopAllAudio( PyObject * self )
+static PyObject * PyModule_PepperStopAllAudio( PyObject * self )
 {
   PepperProxyManager::instance()->stopAllAudio();
   Py_RETURN_NONE;
@@ -1005,10 +991,10 @@ static PyObject * PyModule_NaoStopAllAudio( PyObject * self )
  *  \param str colour. Colour must be 'red','green', 'blue', 'white', 'blank', 'yellow' or 'pink'.
  *  \return None.
  */
-static PyObject * PyModule_NaoSSetChestLED( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperSetChestLED( PyObject * self, PyObject * args )
 {
   char * colourStr = NULL;
-  PepperLedColour colourID;
+  NAOLedColour colourID;
 
   if (!PyArg_ParseTuple( args, "s", &colourStr )) {
     // PyArg_ParseTuple will set the error status.
@@ -1034,14 +1020,14 @@ static PyObject * PyModule_NaoSSetChestLED( PyObject * self, PyObject * args )
  *  \return None.
  *  \note Colour must be 'red','green', 'blue', 'white', 'blank', 'yellow' or 'pink'.
  */
-static PyObject * PyModule_NaoPluseChestLED( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperPluseChestLED( PyObject * self, PyObject * args )
 {
   char * colourStr1 = NULL;
   char * colourStr2 = NULL;
 
   float period = 0.5;
 
-  PepperLedColour colourID1, colourID2;
+  NAOLedColour colourID1, colourID2;
 
   if (!PyArg_ParseTuple( args, "ss|f", &colourStr1, &colourStr2, &period )) {
     // PyArg_ParseTuple will set the error status.
@@ -1068,7 +1054,7 @@ static PyObject * PyModule_NaoPluseChestLED( PyObject * self, PyObject * args )
  *  \return tuple(battery percentage, is_plugged_in, is_(dis)charging).
  */
 /**@}*/
-static PyObject * PyModule_NaoGetBatteryStatus( PyObject * self )
+static PyObject * PyModule_PepperGetBatteryStatus( PyObject * self )
 {
   int batpercent = 0;
   bool isplugged = false;
@@ -1102,67 +1088,71 @@ static PyMethodDef PyModule_methods[] = {
     "Set Nao team member ID and team colour." },
   { "sendTeamMessage", (PyCFunction)PyModule_sendTeamMessage, METH_VARARGS,
     "Send a message to the rest team members." },
-  { "say", (PyCFunction)PyModule_NaoSayWithVolume, METH_VARARGS,
+  { "say", (PyCFunction)PyModule_PepperSayWithVolume, METH_VARARGS,
     "Let Pepper speak with an optional volume." },
-  { "moveHeadTo", (PyCFunction)PyModule_NaoMoveHeadTo, METH_VARARGS,
+  { "moveHeadTo", (PyCFunction)PyModule_PepperMoveHeadTo, METH_VARARGS,
     "Move Pepper head to a new position." },
-  { "updateHeadPos", (PyCFunction)PyModule_NaoUpdateHeadPos, METH_VARARGS,
+  { "updateHeadPos", (PyCFunction)PyModule_PepperUpdateHeadPos, METH_VARARGS,
     "Change Pepper head position with a specific angle in radian." },
-  { "getHeadPos", (PyCFunction)PyModule_NaoGetHeadPos, METH_NOARGS,
+  { "getHeadPos", (PyCFunction)PyModule_PepperGetHeadPos, METH_NOARGS,
     "Get Pepper's head position." },
-  { "setHeadStiffness", (PyCFunction)PyModule_NaoSetHeadStiffness, METH_VARARGS,
+  { "setHeadStiffness", (PyCFunction)PyModule_PepperSetHeadStiffness, METH_VARARGS,
     "Set the stiffness of the Pepper's head. " },
-  { "setBodyStiffness", (PyCFunction)PyModule_NaoSetBodyStiffness, METH_VARARGS,
+  { "setBodyStiffness", (PyCFunction)PyModule_PepperSetBodyStiffness, METH_VARARGS,
     "Set the stiffness of the Pepper's body. " },
-  { "sit", (PyCFunction)PyModule_NaoSit, METH_VARARGS,
-    "Get Pepper to sit in standard or relax mode (set optional input to True). " },
-  { "stand", (PyCFunction)PyModule_NaoStand, METH_VARARGS,
+  { "gotoStation", (PyCFunction)PyModule_PepperGotoStation, METH_NOARGS,
+    "Get Pepper to its charging station. " },
+  { "leaveStation", (PyCFunction)PyModule_PepperGotoStation, METH_NOARGS,
+    "Move Pepper off its charging station. " },
+  { "stand", (PyCFunction)PyModule_PepperStand, METH_VARARGS,
     "Get Pepper to stand up in standard or ready to walk mode (set optional input to True). " },
-  { "crouch", (PyCFunction)PyModule_NaoCrouch, METH_NOARGS,
+  { "crouch", (PyCFunction)PyModule_PepperCrouch, METH_NOARGS,
     "Get Pepper to crouch. " },
-  { "lyingDown", (PyCFunction)PyModule_NaoLyingDown, METH_VARARGS,
-    "Get Pepper to lying down either belly down or up. (set optional input to True). " },
-  { "setArmStiffness", (PyCFunction)PyModule_NaoSetArmStiffness, METH_VARARGS,
+  { "navigateBodyTo", (PyCFunction)PyModule_PepperNavigateBodyTo, METH_VARARGS,
+    "Navigate Pepper to a specific position w.r.t the current robot pose. " },
+  { "moveBodyTo", (PyCFunction)PyModule_PepperNavigateBodyTo, METH_VARARGS,
+    "Move Pepper to a specific position w.r.t the current robot pose. " },
+  { "setArmStiffness", (PyCFunction)PyModule_PepperSetArmStiffness, METH_VARARGS,
     "Set the stiffness of the one of Pepper's arms. " },
-  { "setLegStiffness", (PyCFunction)PyModule_NaoSetLegStiffness, METH_VARARGS,
+  { "setLegStiffness", (PyCFunction)PyModule_PepperSetLegStiffness, METH_VARARGS,
      "Set the stiffness of the one of Pepper's legs. " },
-  { "moveArmWithJointPos", (PyCFunction)PyModule_NaoMoveArmWithJointPos, METH_VARARGS|METH_KEYWORDS,
+  { "moveArmWithJointPos", (PyCFunction)PyModule_PepperMoveArmWithJointPos, METH_VARARGS|METH_KEYWORDS,
     "Move one of Pepper arms with specific joint positions." },
-  { "moveArmWithJointTrajectory", (PyCFunction)PyModule_NaoMoveArmWithJointTraj, METH_VARARGS,
+  { "moveArmWithJointTrajectory", (PyCFunction)PyModule_PepperMoveArmWithJointTraj, METH_VARARGS,
     "Move one of Pepper arms with specific joint trajectory (a list of joint positions)." },
-  { "moveLegWithJointPos", (PyCFunction)PyModule_NaoMoveLegWithJointPos, METH_VARARGS|METH_KEYWORDS,
+  { "moveLegWithJointPos", (PyCFunction)PyModule_PepperMoveLegWithJointPos, METH_VARARGS|METH_KEYWORDS,
     "Move one of Pepper legs with specific joint positions." },
-  { "moveBodyWithJointPos", (PyCFunction)PyModule_NaoMoveBodyWithJointPos, METH_VARARGS|METH_KEYWORDS,
+  { "moveBodyWithJointPos", (PyCFunction)PyModule_PepperMoveBodyWithJointPos, METH_VARARGS|METH_KEYWORDS,
     "Move Pepper all body joint positions." },
-  { "getArmJointPositions", (PyCFunction)PyModule_NaoGetArmJointPositions, METH_VARARGS,
+  { "getArmJointPositions", (PyCFunction)PyModule_PepperGetArmJointPositions, METH_VARARGS,
     "Get joint positions of Nao's arms." },
-  { "getLegJointPositions", (PyCFunction)PyModule_NaoGetLegJointPositions, METH_VARARGS,
+  { "getLegJointPositions", (PyCFunction)PyModule_PepperGetLegJointPositions, METH_VARARGS,
     "Get joint positions of Nao's legs." },
-  { "getBodyJointPositions", (PyCFunction)PyModule_NaoGetBodyJointPositions, METH_VARARGS,
+  { "getBodyJointPositions", (PyCFunction)PyModule_PepperGetBodyJointPositions, METH_VARARGS,
     "Get full joint positions of Nao." },
-  { "loadAudioFile", (PyCFunction)PyModule_NaoLoadAudioFile, METH_VARARGS,
+  { "loadAudioFile", (PyCFunction)PyModule_PepperLoadAudioFile, METH_VARARGS,
     "Load an audio file on Pepper." },
-  { "unloadAudioFile", (PyCFunction)PyModule_NaoUnloadAudioFile, METH_VARARGS,
+  { "unloadAudioFile", (PyCFunction)PyModule_PepperUnloadAudioFile, METH_VARARGS,
     "Unload an audio file from Pepper." },
-  { "unloadAllAudioFiles", (PyCFunction)PyModule_NaoUnloadAllAudioFiles, METH_NOARGS,
+  { "unloadAllAudioFiles", (PyCFunction)PyModule_PepperUnloadAllAudioFiles, METH_NOARGS,
     "Unload all audio files from Pepper." },
-  { "playWebAudio", (PyCFunction)PyModule_NaoPlayWebAudio, METH_VARARGS,
+  { "playWebAudio", (PyCFunction)PyModule_PepperPlayWebAudio, METH_VARARGS,
     "Play a web audio stream on Pepper." },
-  { "playAudioID", (PyCFunction)PyModule_NaoPlayAudioID, METH_VARARGS,
+  { "playAudioID", (PyCFunction)PyModule_PepperPlayAudioID, METH_VARARGS,
     "Play an audio file on Pepper." },
-  { "getAudioVolume", (PyCFunction)PyModule_NaoGetAudioVolume, METH_NOARGS,
+  { "getAudioVolume", (PyCFunction)PyModule_PepperGetAudioVolume, METH_NOARGS,
     "Get master audio volume on Pepper." },
-  { "setAudioVolume", (PyCFunction)PyModule_NaoSetAudioVolume, METH_VARARGS,
+  { "setAudioVolume", (PyCFunction)PyModule_PepperSetAudioVolume, METH_VARARGS,
     "Set master audio volume on Pepper." },
-  { "pauseAudioID", (PyCFunction)PyModule_NaoPauseAudioID, METH_VARARGS,
+  { "pauseAudioID", (PyCFunction)PyModule_PepperPauseAudioID, METH_VARARGS,
     "Pause a playing audio file." },
-  { "stopAllAudio", (PyCFunction)PyModule_NaoStopAllAudio, METH_NOARGS,
+  { "stopAllAudio", (PyCFunction)PyModule_PepperStopAllAudio, METH_NOARGS,
     "Stop playing all audio on Pepper." },
-  { "setChestLED", (PyCFunction)PyModule_NaoSSetChestLED, METH_VARARGS,
+  { "setChestLED", (PyCFunction)PyModule_PepperSetChestLED, METH_VARARGS,
     "Set the colour of the chest LEDs on Pepper." },
-  { "pluseChestLED", (PyCFunction)PyModule_NaoPluseChestLED, METH_VARARGS,
+  { "pluseChestLED", (PyCFunction)PyModule_PepperPluseChestLED, METH_VARARGS,
     "Pluse the chest LED of Pepper between two colours." },
-  { "getBatteryStatus", (PyCFunction)PyModule_NaoGetBatteryStatus, METH_NOARGS,
+  { "getBatteryStatus", (PyCFunction)PyModule_PepperGetBatteryStatus, METH_NOARGS,
     "Get the current battery status." },
 #define DEFINE_COMMON_PYMODULE_METHODS
 #include "PyModulePyCommon.cpp"

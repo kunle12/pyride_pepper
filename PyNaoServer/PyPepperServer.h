@@ -68,7 +68,7 @@ public:
 
   bool innerTest() { return true; }
   bool isRunning() { return true; }
-  std::string version() { return "1.14.5"; }
+  std::string version() { return "2.4.2"; }
 
   // Automatically called right after the module is created.
   virtual void init();
@@ -77,6 +77,7 @@ public:
   // callbacks
   void onRightBumperPressed();
   void onLeftBumperPressed();
+  void onBackBumperPressed();
   void onSingleChestButtonPressed();
   void onDoubleChestButtonPressed();
   void onTripleChestButtonPressed();

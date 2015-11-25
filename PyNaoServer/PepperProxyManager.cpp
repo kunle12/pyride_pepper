@@ -59,6 +59,7 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
 
   try {
     speechProxy_ = boost::shared_ptr<ALTextToSpeechProxy>(new ALTextToSpeechProxy( broker ));
+    speechProxy_->setLanguage( "English" );
   }
   catch (const ALError& e) {
     ERROR_MSG( "PyPepperServer: Could not create a proxy to ALTextToSpeech.\n");
@@ -87,7 +88,7 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     audioDeviceProxy_.reset();
   }
   if (audioDeviceProxy_) {
-    INFO_MSG( "Pepper ALAudioDevice are successfully initialised.\n" );
+    INFO_MSG( "Pepper ALAudioDevice is successfully initialised.\n" );
   }
 
   try {
@@ -98,7 +99,7 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     audioPlayerProxy_.reset();
   }
   if (audioPlayerProxy_) {
-    INFO_MSG( "Pepper ALAudioPlayer are successfully initialised.\n" );
+    INFO_MSG( "Pepper ALAudioPlayer is successfully initialised.\n" );
   }
   
   try {
@@ -111,29 +112,24 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
   if (motionProxy_) {
     moveInitialised_ = false;
     AL::ALValue joints; // make sure we get joint limits in correct order
-    jointLimits_.arraySetSize( 22 );
+    jointLimits_.arraySetSize( 17 );
     jointLimits_[0] = motionProxy_->getLimits( "HeadYaw" )[0];
     jointLimits_[1] = motionProxy_->getLimits( "HeadPitch" )[0];
     jointLimits_[2] = motionProxy_->getLimits( "LShoulderPitch" )[0];
     jointLimits_[3] = motionProxy_->getLimits( "LShoulderRoll" )[0];
     jointLimits_[4] = motionProxy_->getLimits( "LElbowYaw" )[0];
     jointLimits_[5] = motionProxy_->getLimits( "LElbowRoll" )[0];
-    jointLimits_[6] = motionProxy_->getLimits( "LHipYawPitch" )[0];
-    jointLimits_[7] = motionProxy_->getLimits( "LHipRoll" )[0];
-    jointLimits_[8] = motionProxy_->getLimits( "LHipPitch" )[0];
-    jointLimits_[9] = motionProxy_->getLimits( "LKneePitch" )[0];
-    jointLimits_[10] = motionProxy_->getLimits( "LAnklePitch" )[0];
-    jointLimits_[11] = motionProxy_->getLimits( "LAnkleRoll" )[0];
-    jointLimits_[12] = motionProxy_->getLimits( "RHipYawPitch" )[0];
-    jointLimits_[13] = motionProxy_->getLimits( "RHipRoll" )[0];
-    jointLimits_[14] = motionProxy_->getLimits( "RHipPitch" )[0];
-    jointLimits_[15] = motionProxy_->getLimits( "RKneePitch" )[0];
-    jointLimits_[16] = motionProxy_->getLimits( "RAnklePitch" )[0];
-    jointLimits_[17] = motionProxy_->getLimits( "RAnkleRoll" )[0];
-    jointLimits_[18] = motionProxy_->getLimits( "RShoulderPitch" )[0];
-    jointLimits_[19] = motionProxy_->getLimits( "RShoulderRoll" )[0];
-    jointLimits_[20] = motionProxy_->getLimits( "RElbowYaw" )[0];
-    jointLimits_[21] = motionProxy_->getLimits( "RElbowRoll" )[0];
+    jointLimits_[6] = motionProxy_->getLimits( "LWristYaw" )[0];
+    jointLimits_[7] = motionProxy_->getLimits( "LHand" )[0];
+    jointLimits_[8] = motionProxy_->getLimits( "HipRoll" )[0];
+    jointLimits_[9] = motionProxy_->getLimits( "HipPitch" )[0];
+    jointLimits_[10] = motionProxy_->getLimits( "KneePitch" )[0];
+    jointLimits_[11] = motionProxy_->getLimits( "RShoulderPitch" )[0];
+    jointLimits_[12] = motionProxy_->getLimits( "RShoulderRoll" )[0];
+    jointLimits_[13] = motionProxy_->getLimits( "RElbowYaw" )[0];
+    jointLimits_[14] = motionProxy_->getLimits( "RElbowRoll" )[0];
+    jointLimits_[15] = motionProxy_->getLimits( "RWristYaw" )[0];
+    jointLimits_[16] = motionProxy_->getLimits( "RHand" )[0];
 
     INFO_MSG( "Pepper Motion is successfully initialised.\n" );
   }
@@ -146,11 +142,22 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     postureProxy_.reset();
   }
   if (postureProxy_) {
-    postureProxy_->goToPosture( "Crouch", 0.6 );
+    postureProxy_->goToPosture( "Stand", 0.6 );
     if (motionProxy_) {
       motionProxy_->rest();
     }
     INFO_MSG( "Pepper Robot Posture is successfully initialised.\n" );
+  }
+
+  try {
+    navigationProxy_ = boost::shared_ptr<ALNavigationProxy>(new ALNavigationProxy( broker ));
+  }
+  catch (const ALError& e) {
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALNavigationProxy.\n");
+    navigationProxy_.reset();
+  }
+  if (navigationProxy_) {
+    INFO_MSG( "Pepper navigation is successfully initialised.\n" );
   }
 }
 
@@ -256,15 +263,6 @@ void PepperProxyManager::setBodyStiffness( const float stiff )
   }
 }
 
-void PepperProxyManager::sit( bool relax )
-{
-  if (postureProxy_) {
-    postureProxy_->goToPosture( relax ? "SitRelax" : "Sit", 0.7 );
-    motionProxy_->rest();
-    moveInitialised_ = false;
-  }
-}
-
 void PepperProxyManager::stand( bool init )
 {
   if (postureProxy_) {
@@ -282,16 +280,7 @@ void PepperProxyManager::crouch()
   }
 }
 
-void PepperProxyManager::lyingDown( bool bellyUp )
-{
-  if (postureProxy_) {
-    postureProxy_->goToPosture( bellyUp ? "LyingBack" : "LyingBelly", 0.7 );
-    motionProxy_->rest();
-    moveInitialised_ = false;
-  }
-}
-
-bool PepperProxyManager::moveBodyTo( const RobotPose & pose, bool cancelPreviousMove )
+bool PepperProxyManager::moveBodyTo( const RobotPose & pose, float duration, bool cancelPreviousMove )
 {
   if (!motionProxy_) {
     ERROR_MSG( "Unable to initialise walk." );
@@ -311,7 +300,7 @@ bool PepperProxyManager::moveBodyTo( const RobotPose & pose, bool cancelPrevious
     motionProxy_->moveInit();
     moveInitialised_ = true;
   }
-  motionProxy_->post.moveTo( pose.x, pose.y, pose.theta );
+  motionProxy_->post.moveTo( pose.x, pose.y, pose.theta, duration );
   return true;
 }
 
@@ -320,6 +309,24 @@ void PepperProxyManager::cancelBodyMovement()
   if (motionProxy_ && motionProxy_->moveIsActive()) {
     motionProxy_->stopMove();
   }
+}
+
+bool PepperProxyManager::navigateBodyTo( const RobotPose & pose, bool cancelPreviousMove )
+{
+  if (!navigationProxy_) {
+    ERROR_MSG( "Unable to initialise navigation." );
+    return false;
+  }
+  if (motionProxy_->moveIsActive()) {
+    if (cancelPreviousMove) {
+      motionProxy_->stopMove();
+    }
+    else {
+      ERROR_MSG( "Unable to issue new work command, robot is moving." );
+      return false;
+    }
+  }
+  return navigationProxy_->navigateTo( pose.x, pose.y );
 }
 
 void PepperProxyManager::updateBodyPose( const RobotPose & pose )
@@ -334,7 +341,7 @@ void PepperProxyManager::updateBodyPose( const RobotPose & pose )
     motionProxy_->moveInit();
     moveInitialised_ = true;
   }
-  motionProxy_->move( pose.x/3, pose.y/3, pose.theta/2 );
+  motionProxy_->moveToward( pose.x, pose.y, pose.theta );
   if (!timeoutThread_) {
     if (pthread_create( &timeoutThread_, NULL, timeout_thread, this ) ) {
       ERROR_MSG( "Unable to create thread to check motion command expiry.\n" );
@@ -364,12 +371,12 @@ void PepperProxyManager::getArmJointsPos( bool isLeft, std::vector<float> & posi
   }
 }
 
-void PepperProxyManager::getLegJointsPos( bool isLeft, std::vector<float> & positions,
+void PepperProxyManager::getLegJointsPos( std::vector<float> & positions,
                      bool useSensor )
 {
   positions.clear();
   if (motionProxy_) {
-    AL::ALValue names = isLeft ? "LLeg" : "RLeg";
+    AL::ALValue names = "Leg";
     positions = motionProxy_->getAngles( names, useSensor );
   }
 }
@@ -382,10 +389,10 @@ void PepperProxyManager::setArmStiffness( bool isLeft, const float stiff )
   }
 }
 
-void PepperProxyManager::setLegStiffness( bool isLeft, const float stiff )
+void PepperProxyManager::setLegStiffness( const float stiff )
 {
   if (motionProxy_ && stiff >= 0.0 && stiff <= 1.0) {
-    AL::ALValue names = isLeft ? "LLeg" : "RLeg";
+    AL::ALValue names = "Leg";
     motionProxy_->setStiffnesses( names, stiff );
   }
 }
@@ -396,7 +403,7 @@ bool PepperProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<
     return false;
   
   int pos_size = positions.size();
-  if (pos_size != 4) {
+  if (pos_size != 5) {
     return false;
   }
   
@@ -404,11 +411,13 @@ bool PepperProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<
   AL::ALValue names = isLeftArm ? AL::ALValue::array( "LShoulderPitch",
                                                       "LShoulderRoll",
                                                       "LElbowYaw",
-                                                      "LElbowRoll" ) :
+                                                      "LElbowRoll",
+                                                      "LWristYaw") :
                                   AL::ALValue::array( "RShoulderPitch",
                                                       "RShoulderRoll",
                                                       "RElbowYaw",
-                                                      "RElbowRoll" );
+                                                      "RElbowRoll",
+                                                      "RWristYaw");
   
   AL::ALValue angles;
 
@@ -486,23 +495,23 @@ void PepperProxyManager::moveArmWithJointTrajectory( bool isLeftArm, std::vector
   }
 }
 
-bool PepperProxyManager::moveLegWithJointPos( bool isLeft, const std::vector<float> & positions, float frac_speed )
+bool PepperProxyManager::moveLegWithJointPos( const std::vector<float> & positions, float frac_speed )
 {
   if (!motionProxy_)
     return false;
 
   int pos_size = positions.size();
-  if (pos_size != 6) {
+  if (pos_size != 3) {
     return false;
   }
-  AL::ALValue names = isLeft ? "LLeg" : "RLeg";
+  AL::ALValue names = "Leg";
   AL::ALValue angles;
   
   motionProxy_->setStiffnesses( names, 1.0 );
 
   angles.arraySetSize( pos_size );
   for (int i = 0; i < pos_size; ++i) {
-    angles[i] = clamp( positions[i], (isLeft ? L_HIP_YAW_PITCH + i : R_HIP_YAW_PITCH +i ) );
+    angles[i] = clamp( positions[i], HIP_ROLL + i );
   }
   try {
     motionProxy_->setAngles( names, angles, frac_speed );
@@ -702,6 +711,15 @@ void PepperProxyManager::getBatteryStatus( int & percentage, bool & isplugged, b
     isdischarging = memoryProxy_->getData( "BatteryDisChargingFlagChanged" );
   }
 }
+void PepperProxyManager::gotoStation()
+{
+  // to be implemented
+}
+
+void PepperProxyManager::leaveStation()
+{
+  // to be implemented
+}
 
 void PepperProxyManager::fini()
 {
@@ -729,33 +747,21 @@ void PepperProxyManager::fini()
 // helper function
 void PepperProxyManager::continuePluseChestLED()
 {
-  fd_set dummyFDSet;
-  struct timeval timeout;
-  
-  FD_ZERO( &dummyFDSet );
-  
   while (isChestLEDPulsating_) {
     pthread_mutex_lock( &t_mutex_ );
     ledProxy_->fadeListRGB( "ChestLeds", ledColourHex_, ledChangePeriod_ );
     pthread_mutex_unlock( &t_mutex_ );
-    
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 10000;
-    select( 1, &dummyFDSet, NULL, NULL, &timeout );
+
+    usleep( 10000 );
   }
 }
 
 void PepperProxyManager::timeoutCheck()
 {
-  fd_set dummyFDSet;
-  struct timeval now, timeout;
-  
-  FD_ZERO( &dummyFDSet );
+  struct timeval now;
   
   do {
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 10000;
-    select( 1, &dummyFDSet, NULL, NULL, &timeout );
+    usleep( 10000 );
     gettimeofday( &now, NULL );
   } while (((now.tv_sec - cmdTimeStamp_.tv_sec) * 1000000 + now.tv_usec - cmdTimeStamp_.tv_usec) < kMotionCommandGapTolerance);
   this->cancelBodyMovement();

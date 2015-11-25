@@ -1,1 +1,8 @@
-<project name="PyPepperServer" />
+<project name="PyPepperServer">
+  <depends buildtime="true" runtime="true" names="libpyridecore" />
+  <depends buildtime="true" runtime="true" names="libcelt" />
+  <depends buildtime="true" runtime="true" names="libccrtp" />
+  <depends buildtime="true" runtime="true" names="libccgnu2" />
+  <depends buildtime="true" runtime="true" names="libccext2" />
+  <depends buildtime="true" runtime="true" names="libcrypto" />
+</project>
