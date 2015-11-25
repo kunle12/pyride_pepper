@@ -300,6 +300,19 @@ PyPepperServer::PyPepperServer( boost::shared_ptr<ALBroker> pBroker, const std::
   BIND_METHOD( PyPepperServer::onLeftBumperPressed );
   functionName("onBackBumperPressed", getName(), "Method called when the back bumper is pressed.");
   BIND_METHOD( PyPepperServer::onBackBumperPressed );
+
+  functionName("onFrontTactilTouched", getName(), "Method called when the head front tactile is touched.");
+  BIND_METHOD( PyPepperServer::onFrontTactilTouched );
+  functionName("onMiddleTactilTouched", getName(), "Method called when the head middle tactile is touched.");
+  BIND_METHOD( PyPepperServer::onMiddleTactilTouched );
+  functionName("onRearTactilTouched", getName(), "Method called when the head rear tactile is touched.");
+  BIND_METHOD( PyPepperServer::onRearTactilTouched );
+
+  functionName("onRightHandTouched", getName(), "Method called when one of the right hand tactiles is touched.");
+  BIND_METHOD( PyPepperServer::onRightHandTouched );
+  functionName("onLeftHandTouched", getName(), "Method called when one of the left hand tactiles is touched.");
+  BIND_METHOD( PyPepperServer::onLeftHandTouched );
+
   functionName("onSingleChestButtonPressed", getName(), "Method called when the chest button pressed once.");
   BIND_METHOD( PyPepperServer::onSingleChestButtonPressed );
   functionName("onDoubleChestButtonPressed", getName(), "Method called when the chest button pressed twice.");
@@ -357,9 +370,18 @@ void PyPepperServer::init()
   if (memoryProxy_) {
     INFO_MSG( "Nao memory proxy is successfully initialised.\n" );
     /* subscribe to sensor events */
-    memoryProxy_->subscribeToEvent( "Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value", "PyPepperServer", "onRightBumperPressed" );
-    memoryProxy_->subscribeToEvent( "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value", "PyPepperServer", "onLeftBumperPressed" );
-    memoryProxy_->subscribeToEvent( "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value", "PyPepperServer", "onBackBumperPressed" );
+    memoryProxy_->subscribeToEvent( "RightBumperPressed", "PyPepperServer", "onRightBumperPressed" );
+    memoryProxy_->subscribeToEvent( "LeftBumperPressed", "PyPepperServer", "onLeftBumperPressed" );
+    memoryProxy_->subscribeToEvent( "BackBumperPressed", "PyPepperServer", "onBackBumperPressed" );
+
+    memoryProxy_->subscribeToEvent( "FrontTactilTouched", "PyPepperServer", "onFrontTactilTouched" );
+    memoryProxy_->subscribeToEvent( "MiddleTactilTouched", "PyPepperServer", "onMiddleTactilTouched" );
+    memoryProxy_->subscribeToEvent( "RearTactilTouched", "PyPepperServer", "onRearTactilTouched" );
+
+    memoryProxy_->subscribeToEvent( "HandRightBackTouched", "PyPepperServer", "onRightHandTouched" );
+
+    memoryProxy_->subscribeToEvent( "HandLeftBackTouched", "PyPepperServer", "onLeftHandTouched" );
+
     memoryProxy_->subscribeToEvent( "ALChestButton/SimpleClickOccurred", "PyPepperServer", "onSingleChestButtonPressed" );
     memoryProxy_->subscribeToEvent( "ALChestButton/DoubleClickOccurred", "PyPepperServer", "onDoubleChestButtonPressed" );
     memoryProxy_->subscribeToEvent( "ALChestButton/TripleClickOccurred", "PyPepperServer", "onTripleChestButtonPressed" );
@@ -388,9 +410,9 @@ void PyPepperServer::fini()
 
   /*
   if (memoryProxy_) {
-    memoryProxy_->unsubscribeToEvent( "Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value", getName() );
-    memoryProxy_->unsubscribeToEvent( "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value", getName() );
-    memoryProxy_->unsubscribeToEvent( "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value", getName() );
+    memoryProxy_->unsubscribeToEvent( "RightBumperPressed", getName() );
+    memoryProxy_->unsubscribeToEvent( "LeftBumperPressed", getName() );
+    memoryProxy_->unsubscribeToEvent( "BackBumperPressed", getName() );
     memoryProxy_->unsubscribeToEvent( "ALChestButton/SimpleClickOccurred", getName() );
     memoryProxy_->unsubscribeToEvent( "ALChestButton/DoubleClickOccurred", getName() );
     memoryProxy_->unsubscribeToEvent( "ALChestButton/TripleClickOccurred", getName() );
@@ -459,7 +481,7 @@ void PyPepperServer::onRightBumperPressed()
   /**
    * Check that the bumper is pressed.
    */
-  float stat =  memoryProxy_->getData( "Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value" );
+  float stat =  memoryProxy_->getData( "RightBumperPressed" );
   if (stat  > 0.5f) {
     PyObject * arg = NULL;
     
@@ -482,7 +504,7 @@ void PyPepperServer::onLeftBumperPressed()
   /**
    * Check that the bumper is pressed.
    */
-  float stat =  memoryProxy_->getData( "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value" );
+  float stat =  memoryProxy_->getData( "LeftBumperPressed" );
   if (stat  > 0.5f) {
     PyObject * arg = NULL;
     
@@ -505,20 +527,132 @@ void PyPepperServer::onBackBumperPressed()
   /**
    * Check that the bumper is pressed.
    */
-  float stat =  memoryProxy_->getData( "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value" );
+  float stat =  memoryProxy_->getData( "BackBumperPressed" );
   if (stat  > 0.5f) {
     PyObject * arg = NULL;
 
     PyGILState_STATE gstate;
     gstate = PyGILState_Ensure();
 
-    arg = Py_BuildValue( "(s)", "left" );
+    arg = Py_BuildValue( "(s)", "back" );
 
     PyPepperModule::instance()->invokeCallback( "onBumperPressed", arg );
     Py_DECREF( arg );
 
     PyGILState_Release( gstate );
   }
+}
+
+void PyPepperServer::onFrontTactilTouched()
+{
+  ALCriticalSection section( callbackMutex_ );
+
+  /**
+   * Check that the bumper is pressed.
+   */
+  float stat =  memoryProxy_->getData( "FrontTactilTouched" );
+  if (stat  > 0.5f) {
+    PyObject * arg = NULL;
+
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
+
+    arg = Py_BuildValue( "(s)", "front" );
+
+    PyPepperModule::instance()->invokeCallback( "onHeadTactileTouched", arg );
+    Py_DECREF( arg );
+
+    PyGILState_Release( gstate );
+  }
+}
+
+void PyPepperServer::onMiddleTactilTouched()
+{
+  ALCriticalSection section( callbackMutex_ );
+
+  /**
+   * Check that the bumper is pressed.
+   */
+  float stat =  memoryProxy_->getData( "MiddleTactilTouched" );
+  if (stat  > 0.5f) {
+    PyObject * arg = NULL;
+
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
+
+    arg = Py_BuildValue( "(s)", "middle" );
+
+    PyPepperModule::instance()->invokeCallback( "onHeadTactileTouched", arg );
+    Py_DECREF( arg );
+
+    PyGILState_Release( gstate );
+  }
+}
+
+void PyPepperServer::onRearTactilTouched()
+{
+  ALCriticalSection section( callbackMutex_ );
+
+  /**
+   * Check that the bumper is pressed.
+   */
+  float stat =  memoryProxy_->getData( "RearTactilTouched" );
+  if (stat  > 0.5f) {
+    PyObject * arg = NULL;
+
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
+
+    arg = Py_BuildValue( "(s)", "rear" );
+
+    PyPepperModule::instance()->invokeCallback( "onHeadTactileTouched", arg );
+    Py_DECREF( arg );
+
+    PyGILState_Release( gstate );
+  }
+}
+
+void PyPepperServer::onRightHandTouched()
+{
+  ALCriticalSection section( callbackMutex_ );
+
+  /**
+   * Check that the bumper is pressed.
+   */
+  float stat =  memoryProxy_->getData( "HandRightBackTouched" );
+  PyObject * arg = NULL;
+
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  arg = Py_BuildValue( "(s)", (stat  > 0.5f) ? "on" : "off" );
+
+  PyPepperModule::instance()->invokeCallback( "onRightHandTouched", arg );
+  Py_DECREF( arg );
+
+  PyGILState_Release( gstate );
+}
+
+void PyPepperServer::onLeftHandTouched()
+{
+  ALCriticalSection section( callbackMutex_ );
+
+  /**
+   * Check that the bumper is pressed.
+   */
+  float stat =  memoryProxy_->getData( "HandLeftBackTouched" );
+
+  PyObject * arg = NULL;
+
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  arg = Py_BuildValue( "(s)", (stat  > 0.5f) ? "on" : "off" );
+
+  PyPepperModule::instance()->invokeCallback( "onLeftHandTouched", arg );
+  Py_DECREF( arg );
+
+  PyGILState_Release( gstate );
 }
 
 void PyPepperServer::onSingleChestButtonPressed()

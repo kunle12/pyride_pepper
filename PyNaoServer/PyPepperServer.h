@@ -78,6 +78,14 @@ public:
   void onRightBumperPressed();
   void onLeftBumperPressed();
   void onBackBumperPressed();
+
+  void onFrontTactilTouched();
+  void onMiddleTactilTouched();
+  void onRearTactilTouched();
+
+  void onRightHandTouched();
+  void onLeftHandTouched();
+
   void onSingleChestButtonPressed();
   void onDoubleChestButtonPressed();
   void onTripleChestButtonPressed();
