@@ -141,23 +141,43 @@ static PyObject * PyModule_PepperSayWithVolume( PyObject * self, PyObject * args
 {
   float volume = 0.0;
   char * dataStr = NULL;
+  bool toBlock = false;
+  bool toAnimate = true;
+
+  PyObject * toAnimateObj = NULL;
   PyObject * toBlockObj = NULL;
 
-  if (!PyArg_ParseTuple( args, "s|fO", &dataStr, &volume, &toBlockObj )) {
+  if (!PyArg_ParseTuple( args, "s|fOO", &dataStr, &volume, &toAnimateObj, &toBlockObj )) {
     // PyArg_ParseTuple will set the error status.
     return NULL;
   }
-  if (toBlockObj && !PyBool_Check( toBlockObj )) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.say: third parameter must be a boolean!" );
-    return NULL;
+
+  if (toAnimateObj) {
+    if (PyBool_Check( toAnimateObj )) {
+      toAnimate = PyObject_IsTrue( toAnimateObj );
+    }
+    else {
+      PyErr_Format( PyExc_ValueError, "PyPepper.say: third parameter must be a boolean!" );
+      return NULL;
+    }
   }
+  if (toBlockObj) {
+    if (PyBool_Check( toBlockObj )) {
+      toBlock = PyObject_IsTrue( toBlockObj );
+    }
+    else {
+      PyErr_Format( PyExc_ValueError, "PyPepper.say: fouth parameter must be a boolean!" );
+      return NULL;
+    }
+  }
+
   if (volume < 0.0 || volume > 1.0) {
     PyErr_Format( PyExc_ValueError, "PyPepper.say: invalid voice volume!" );
     return NULL;
   }
   if (dataStr) {
     PepperProxyManager::instance()->sayWithVolume( string( dataStr ), volume,
-                                               (toBlockObj && PyObject_IsTrue( toBlockObj )) );
+                                               toAnimate, toBlock );
   }
   Py_RETURN_NONE;
 }
@@ -689,6 +709,53 @@ static PyObject * PyModule_PepperMoveBodyWithJointPos( PyObject * self, PyObject
   Py_RETURN_NONE;
 }
 
+/*! \fn openHand(left_hand, ratio, keep_stiffness)
+ *  \memberof PyPepper
+ *  \brief Open one of the Pepper hands to a ratio of allowed hand joint limit value.
+ *  \param bool left_arm. True for left arm; False for right arm.
+ *  \param float ratio. Optional, ratio between 0.0 and 1.0. 1.0 means the hand is fully open. Default is 1.0
+ *  \param bool keep_stiffness. Optional, True for keep the stiffness on after the action; otherwise False.
+ *  \return None.
+ */
+static PyObject * PyModule_PepperOpenHand( PyObject * self, PyObject * args )
+{
+  PyObject * armSelObj = NULL;
+  PyObject * keepStiffObj = NULL;
+  float oratio = 1.0;
+
+  bool keep_stiff = false;
+
+  if (!PyArg_ParseTuple( args, "O|fO", &armSelObj, &oratio, &keepStiffObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  if (!PyBool_Check( armSelObj )) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.openHand: first input parameter must be a boolean!" );
+    return NULL;
+  }
+
+  if (oratio > 1.0 || oratio < 0.0) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.openHand: second input parameter must be a float with in [0..1.0]!" );
+    return NULL;
+  }
+
+  bool isLeftArm = PyObject_IsTrue( armSelObj );
+
+  if (keepStiffObj) {
+    if (PyBool_Check( keepStiffObj )) {
+      keep_stiff = PyObject_IsTrue( keepStiffObj );
+    }
+    else {
+      PyErr_Format( PyExc_ValueError, "PyPepper.openHand: third input parameter must be a boolean!" );
+      return NULL;
+    }
+  }
+
+  PepperProxyManager::instance()->openHand( isLeftArm, oratio, keep_stiff );
+  Py_RETURN_NONE;
+}
+
 /*! \fn getArmJointPositions(left_arm)
  *  \memberof PyPepper
  *  \brief Get the current joint positions of one of the Pepper arm.
@@ -725,11 +792,11 @@ static PyObject * PyModule_PepperGetArmJointPositions( PyObject * self, PyObject
     }
   }
 
-  std::vector<float> positions( 4, 0.0 );
+  std::vector<float> positions( 5, 0.0 );
 
   PepperProxyManager::instance()->getArmJointsPos( isLeftArm, positions, useSensor );
   PyObject * retObj = PyDict_New();
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     PyObject * numObj = PyFloat_FromDouble( positions.at( i ) );
     PyDict_SetItemString( retObj, (isLeftArm ? kLeftArmKWlist[i] : kRightArmKWlist[i]), numObj );
     Py_DECREF( numObj );
@@ -804,16 +871,36 @@ static PyObject * PyModule_PepperGetBodyJointPositions( PyObject * self, PyObjec
     }
   }
 
-  std::vector<float> positions( 22, 0.0 );
+  std::vector<float> positions( 17, 0.0 );
 
   PepperProxyManager::instance()->getBodyJointsPos( positions, useSensor );
   PyObject * retObj = PyDict_New();
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 17; i++) {
     PyObject * numObj = PyFloat_FromDouble( positions.at( i ) );
     PyDict_SetItemString( retObj, kBodyKWlist[i], numObj );
     Py_DECREF( numObj );
   }
   return retObj;
+}
+
+static PyObject * PyModule_PepperSetAutonomousAbility( PyObject * self, PyObject * args )
+{
+  char * ability = NULL;
+  PyObject * boolObj = NULL;
+
+
+  if (!PyArg_ParseTuple( args, "sO", &ability, &boolObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  if (!PyBool_Check( boolObj )) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.setAutonomousAbility: second parameter must be a boolean!" );
+    return NULL;
+  }
+
+  PepperProxyManager::instance()->setAutonomousAbility( ability, PyObject_IsTrue( boolObj ) );
+  Py_RETURN_NONE;
 }
 
 /** @name Audio Management Functions
@@ -906,7 +993,7 @@ static PyObject * PyModule_PepperPlayAudioID( PyObject * self, PyObject * args )
     return NULL;
   }
   if (toBlockObj && !PyBool_Check( toBlockObj )) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.say: second parameter should be a boolean!" );
+    PyErr_Format( PyExc_ValueError, "PyPepper.playAudioID: second parameter should be a boolean!" );
     return NULL;
   }
   if (audioID > 0) {
@@ -1040,7 +1127,7 @@ static PyObject * PyModule_PepperPluseChestLED( PyObject * self, PyObject * args
   }
 
   if (period <= 0.0) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.pluseChestLED: invalid pluse period." );
+    PyErr_Format( PyExc_ValueError, "PyPepper.pluseChestLED: invalid pulse period." );
     return NULL;
   }
 
@@ -1085,11 +1172,11 @@ static PyMethodDef PyModule_methods[] = {
   { "write", (PyCFunction)PyModule_write, METH_VARARGS,
     "standard output for UTS Pepper Python console." },
   { "setTeamMemberID", (PyCFunction)PyModule_SetTeamMemberID, METH_VARARGS,
-    "Set Nao team member ID and team colour." },
+    "Set Pepper team member ID and team colour." },
   { "sendTeamMessage", (PyCFunction)PyModule_sendTeamMessage, METH_VARARGS,
     "Send a message to the rest team members." },
   { "say", (PyCFunction)PyModule_PepperSayWithVolume, METH_VARARGS,
-    "Let Pepper speak with an optional volume." },
+    "Let Pepper speak with an optional volume and animation." },
   { "moveHeadTo", (PyCFunction)PyModule_PepperMoveHeadTo, METH_VARARGS,
     "Move Pepper head to a new position." },
   { "updateHeadPos", (PyCFunction)PyModule_PepperUpdateHeadPos, METH_VARARGS,
@@ -1125,11 +1212,15 @@ static PyMethodDef PyModule_methods[] = {
   { "moveBodyWithJointPos", (PyCFunction)PyModule_PepperMoveBodyWithJointPos, METH_VARARGS|METH_KEYWORDS,
     "Move Pepper all body joint positions." },
   { "getArmJointPositions", (PyCFunction)PyModule_PepperGetArmJointPositions, METH_VARARGS,
-    "Get joint positions of Nao's arms." },
+    "Get joint positions of Pepper's arms." },
   { "getLegJointPositions", (PyCFunction)PyModule_PepperGetLegJointPositions, METH_VARARGS,
-    "Get joint positions of Nao's legs." },
+    "Get joint positions of Pepper's torso." },
   { "getBodyJointPositions", (PyCFunction)PyModule_PepperGetBodyJointPositions, METH_VARARGS,
-    "Get full joint positions of Nao." },
+    "Get full joint positions of Pepper." },
+  { "openHand", (PyCFunction)PyModule_PepperOpenHand, METH_VARARGS,
+     "Open one of the Pepper's hands to an allowed size. " },
+  { "setAutonomousAbility", (PyCFunction)PyModule_PepperSetAutonomousAbility, METH_VARARGS,
+     "Set the autonomous ability of the Pepper. " },
   { "loadAudioFile", (PyCFunction)PyModule_PepperLoadAudioFile, METH_VARARGS,
     "Load an audio file on Pepper." },
   { "unloadAudioFile", (PyCFunction)PyModule_PepperUnloadAudioFile, METH_VARARGS,

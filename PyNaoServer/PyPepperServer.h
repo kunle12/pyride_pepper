@@ -86,6 +86,8 @@ public:
   void onRightHandTouched();
   void onLeftHandTouched();
 
+  void onMovementFailed();
+
   void onSingleChestButtonPressed();
   void onDoubleChestButtonPressed();
   void onTripleChestButtonPressed();

@@ -68,7 +68,17 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
   if (speechProxy_) {
     INFO_MSG( "Pepper text to speech is successfully initialised.\n" );
   }
-  
+  try {
+    animateSpeechProxy_ = boost::shared_ptr<ALAnimatedSpeechProxy>(new ALAnimatedSpeechProxy( broker ));
+  }
+  catch (const ALError& e) {
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALAnimatedSpeechProxy.\n");
+    animateSpeechProxy_.reset();
+  }
+  if (animateSpeechProxy_) {
+    INFO_MSG( "Pepper Animated speech is successfully initialised.\n" );
+  }
+
   try {
     ledProxy_ = boost::shared_ptr<ALLedsProxy>(new ALLedsProxy( broker ));
   }
@@ -130,7 +140,7 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     jointLimits_[14] = motionProxy_->getLimits( "RElbowRoll" )[0];
     jointLimits_[15] = motionProxy_->getLimits( "RWristYaw" )[0];
     jointLimits_[16] = motionProxy_->getLimits( "RHand" )[0];
-
+    //INFO_MSG( "hand limit (%f,%f)\n", (float)jointLimits_[16][0], (float)jointLimits_[16][1] );
     INFO_MSG( "Pepper Motion is successfully initialised.\n" );
   }
   
@@ -143,9 +153,11 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
   }
   if (postureProxy_) {
     postureProxy_->goToPosture( "Stand", 0.6 );
+    /*
     if (motionProxy_) {
       motionProxy_->rest();
     }
+    */
     INFO_MSG( "Pepper Robot Posture is successfully initialised.\n" );
   }
 
@@ -159,11 +171,31 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
   if (navigationProxy_) {
     INFO_MSG( "Pepper navigation is successfully initialised.\n" );
   }
+
+  try {
+    autoLifeProxy_ = boost::shared_ptr<ALAutonomousLifeProxy>(new ALAutonomousLifeProxy( broker ));
+  }
+  catch (const ALError& e) {
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALAutonomousLifeProxy.\n");
+    autoLifeProxy_.reset();
+  }
+  if (autoLifeProxy_) {
+    INFO_MSG( "Pepper Autonomous life is successfully initialised.\n" );
+  }
+
 }
 
-void PepperProxyManager::sayWithVolume( const std::string & text, float volume, bool toBlock )
+void PepperProxyManager::sayWithVolume( const std::string & text, float volume, bool toAnimate, bool toBlock )
 {
-  if (speechProxy_ && text.length()) {
+  if (toAnimate && animateSpeechProxy_) {
+    if (toBlock) {
+      animateSpeechProxy_->say( text );
+    }
+    else {
+      animateSpeechProxy_->post.say( text );
+    }
+  }
+  else if (speechProxy_) {
     if (volume <= 1.0 && volume > 0.0) {
       speechProxy_->setVolume( volume );
     }
@@ -711,6 +743,14 @@ void PepperProxyManager::getBatteryStatus( int & percentage, bool & isplugged, b
     isdischarging = memoryProxy_->getData( "BatteryDisChargingFlagChanged" );
   }
 }
+
+void PepperProxyManager::setAutonomousAbility( const std::string & ability, bool enable )
+{
+  if (autoLifeProxy_) {
+    //autoLifeProxy_->setAutonomousAbilityEnabled( ability, enable ); // TODO: method is not available in SDK 2.4. yet
+  }
+}
+
 void PepperProxyManager::gotoStation()
 {
   // to be implemented
@@ -767,7 +807,43 @@ void PepperProxyManager::timeoutCheck()
   this->cancelBodyMovement();
   timeoutThread_ = (pthread_t)NULL;
 }
+
+void PepperProxyManager::openHand( bool isLeft, float openRatio, bool keepStiff )
+{
+  float oratio = 1.0;
+  if (openRatio <= 1.0 && openRatio >= 0.0) {
+    oratio = openRatio;
+  }
   
+  AL::ALValue names;
+  AL::ALValue angles;
+
+  names.arraySetSize( 1 );
+  angles.arraySetSize( 1 );
+
+  if (isLeft) {
+    names[0] = "LHand";
+    angles[0] = oratio * ((float)jointLimits_[L_HAND][1] - (float)jointLimits_[L_HAND][0]);
+    motionProxy_->setStiffnesses( "LHand", 1.0 );
+  }
+  else {
+    names[0] = "RHand";
+    angles[0] = oratio * ((float)jointLimits_[R_HAND][1] - (float)jointLimits_[R_HAND][0]);
+    motionProxy_->setStiffnesses( "RHand", 1.0 );
+  }
+
+  try {
+    motionProxy_->setAngles( names, angles, 0.8 );
+  }
+  catch (...) {
+    ERROR_MSG( "Unable to set angle to %s", angles.toString().c_str() );
+  }
+
+  if (!keepStiff) {
+    motionProxy_->setStiffnesses( (isLeft ? "LHand" : "RHand"), 0.0 );
+  }
+}
+
 float PepperProxyManager::clamp( float val, int jointInd )
 {
   if (jointInd >= jointLimits_.getSize()) {

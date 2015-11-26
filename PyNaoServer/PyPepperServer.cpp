@@ -313,6 +313,9 @@ PyPepperServer::PyPepperServer( boost::shared_ptr<ALBroker> pBroker, const std::
   functionName("onLeftHandTouched", getName(), "Method called when one of the left hand tactiles is touched.");
   BIND_METHOD( PyPepperServer::onLeftHandTouched );
 
+  functionName("onMovementFailed", getName(), "Method called when body movement failed.");
+  BIND_METHOD( PyPepperServer::onMovementFailed );
+
   functionName("onSingleChestButtonPressed", getName(), "Method called when the chest button pressed once.");
   BIND_METHOD( PyPepperServer::onSingleChestButtonPressed );
   functionName("onDoubleChestButtonPressed", getName(), "Method called when the chest button pressed twice.");
@@ -379,8 +382,9 @@ void PyPepperServer::init()
     memoryProxy_->subscribeToEvent( "RearTactilTouched", "PyPepperServer", "onRearTactilTouched" );
 
     memoryProxy_->subscribeToEvent( "HandRightBackTouched", "PyPepperServer", "onRightHandTouched" );
-
     memoryProxy_->subscribeToEvent( "HandLeftBackTouched", "PyPepperServer", "onLeftHandTouched" );
+
+    memoryProxy_->subscribeToEvent( "ALMotion/MoveFailed", "PyPepperServer", "onMovementFailed" );
 
     memoryProxy_->subscribeToEvent( "ALChestButton/SimpleClickOccurred", "PyPepperServer", "onSingleChestButtonPressed" );
     memoryProxy_->subscribeToEvent( "ALChestButton/DoubleClickOccurred", "PyPepperServer", "onDoubleChestButtonPressed" );
@@ -655,12 +659,22 @@ void PyPepperServer::onLeftHandTouched()
   PyGILState_Release( gstate );
 }
 
+void PyPepperServer::onMovementFailed()
+{
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  PyPepperModule::instance()->invokeCallback( "onMovementFailed", NULL );
+
+  PyGILState_Release( gstate );
+}
+
 void PyPepperServer::onSingleChestButtonPressed()
 {
   ALCriticalSection section( callbackMutex_ );
   
   /**
-   * Check that the bumper is pressed.
+   * Check that the button is pressed.
    */
   PyObject * arg = NULL;
   

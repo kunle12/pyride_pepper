@@ -25,6 +25,8 @@
 #include <alproxies/almemoryproxy.h>
 #include <alproxies/alnavigationproxy.h>
 #include <alproxies/alnotificationmanagerproxy.h>
+#include <alproxies/alautonomouslifeproxy.h>
+#include <alproxies/alanimatedspeechproxy.h>
 #include <alproxies/alrechargeproxy.h>
 
 namespace pyride {
@@ -68,7 +70,7 @@ public:
   ~PepperProxyManager();
   
   void initWithBroker( boost::shared_ptr<ALBroker> broker, boost::shared_ptr<ALMemoryProxy> memoryProxy );
-  void sayWithVolume( const std::string & text, float volume  = 0.0, bool toBlock = false );
+  void sayWithVolume( const std::string & text, float volume = 1.0, bool toAnimate = true, bool toBlock = false );
   
   int loadAudioFile( const std::string & text );
   void unloadAudioFile( const int audioID );
@@ -114,6 +116,8 @@ public:
   bool moveBodyWithJointPos( const std::vector<float> & positions,
                             float frac_speed = 0.5 );
 
+  void openHand( bool isLeft, float openRatio = 1.0, bool keepStiff = false );
+
   void stand( bool init = false );
   void crouch();
 
@@ -128,6 +132,8 @@ public:
   
   void timeoutCheck();
 
+  void setAutonomousAbility( const std::string & ability, bool enable );
+
   void cancelBodyMovement();
 
   void fini();
@@ -136,6 +142,7 @@ private:
   static PepperProxyManager * s_pPepperProxyManager;
 
   boost::shared_ptr<ALTextToSpeechProxy> speechProxy_;
+  boost::shared_ptr<ALAnimatedSpeechProxy> animateSpeechProxy_;
   boost::shared_ptr<ALMotionProxy> motionProxy_;
   boost::shared_ptr<ALRobotPostureProxy> postureProxy_;
   boost::shared_ptr<ALLedsProxy> ledProxy_;
@@ -143,6 +150,7 @@ private:
   boost::shared_ptr<ALAudioDeviceProxy> audioDeviceProxy_;
   boost::shared_ptr<ALMemoryProxy> memoryProxy_;
   boost::shared_ptr<ALNavigationProxy> navigationProxy_;
+  boost::shared_ptr<ALAutonomousLifeProxy> autoLifeProxy_;
   
   //motion related data
   ALValue jointLimits_;
