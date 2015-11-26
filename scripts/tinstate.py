@@ -1,4 +1,4 @@
-import PyNAO
+import PyPepper
 import constants
 
 status = constants.CLEAN_SLATE
@@ -13,13 +13,13 @@ def updateStatus( state, negate ):
 
   #set chest LED
   if status & constants.NEW_MESSAGES:
-    PyNAO.pluseChestLED( 'red', 'white', 0.5 )
+    PyPepper.pluseChestLED( 'red', 'white', 0.5 )
   elif status & constants.ARCHIVE_MESSAGES:
     if status & constants.USER_PRESENT:
-      PyNAO.setChestLED( 'pink' )
+      PyPepper.setChestLED( 'pink' )
     else:
-      PyNAO.setChestLED( 'red' )
+      PyPepper.setChestLED( 'red' )
   elif status & constants.USER_PRESENT:
-    PyNAO.setChestLED( 'green' )
+    PyPepper.setChestLED( 'green' )
   else:
-    PyNAO.setChestLED( 'white' )
+    PyPepper.setChestLED( 'white' )

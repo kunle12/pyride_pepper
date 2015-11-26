@@ -1,4 +1,4 @@
-import PyNAO
+import PyPepper
 import time
 import constants
 import tinstate
@@ -21,14 +21,9 @@ class Messenger( timerclient.TimerClient ):
     self.archive = []
     self.timedmessages = []
     self.useraliases = {}
+    self.notifmoveTime = None
     self.startupTime = None
-    self.appdisabled = (tininfo.TiNTwOAToken == None)
 
-    if self.appdisabled:
-      print '''PyRIDE NAO twitter app is diabled. Create a Twitter account and application for
-               your NAO and enter the access tokens and secrets in the tininfo.py. Make sure
-               your Twitter account application allow read and write access.'''
-      return
     #load last twitter token
     f = None
     try:
@@ -63,17 +58,16 @@ class Messenger( timerclient.TimerClient ):
 
     self.startupTime = time.localtime()
     self.updatestatus( time.strftime( "I'm back online at %H:%M to serve ", time.localtime() ) + tininfo.TiNLocation + "."  )
-  
+
     self.token = self.lastoken
     self.getmessages()
-    tinstate.updateStatus( constants.NEW_MESSAGES, len( self.messages ) == 0 )
-    tid = PyNAO.addTimer( 60, -1, 60 )
+    tid = PyPepper.addTimer( 60, -1, 60 )
     self.timercontext[tid] = 'getmsg'
     timermanager.addTimer( tid, self )
     #add purge archive time
     purgetime = timermanager.calcTimePeriodFromNow( "4:00" )
     if purgetime > 0:
-      tid = PyNAO.addTimer( purgetime, -1, 24*60*3600 )
+      tid = PyPepper.addTimer( purgetime, -1, 24*60*3600 )
       self.timercontext[tid] = 'purgemsg'
       timermanager.addTimer( tid, self )
 
@@ -93,14 +87,13 @@ class Messenger( timerclient.TimerClient ):
   def onTimer( self, tid ):
     if tid not in self.timercontext:
       return
-      
+
     if self.timercontext[tid] == 'getmsg':
       self.getmessages()
-      tinstate.updateStatus( constants.NEW_MESSAGES, len( self.messages ) == 0 )
     elif self.timercontext[tid] == 'purgemsg':
       self.archive = []
       tinstate.updateStatus( constants.ARCHIVE_MESSAGES, True )
-                            
+
   def getmessages( self ):
     if self.twtaccess == None:
       return
@@ -130,7 +123,7 @@ class Messenger( timerclient.TimerClient ):
       msg.id = newmsg['id']
       if msg.text.startswith( '#now#' ):
         msg.text = msg.text[5:]
-        PyNAO.say( "Urgent message announcement \pau=1000\ ")
+        PyPepper.say( "Urgent message announcement \pau=1000\ ")
         self.announcemsg( [msg] )
         tinstate.updateStatus( constants.ARCHIVE_MESSAGES, len(self.archive) == 0 )
       elif msg.text.startswith( '#qa#' ):
@@ -140,8 +133,18 @@ class Messenger( timerclient.TimerClient ):
             self.replymsg( msg.senderid, response )
         continue
       modmsg.append( msg )
-    
+
     self.messages = modmsg + self.messages
+    tinstate.updateStatus( constants.NEW_MESSAGES, len( self.messages ) == 0 )
+
+    if len(modmsg) > 0:
+      self.notifmove()
+
+  def sendmsg( self, name, mesg ):
+    try:
+      tmo = self.twtaccess.direct_messages.new( user=name, text=mesg )
+    except:
+      print 'Unable to send message to', name
 
   def replymsg( self, replyid, mesg ):
     try:
@@ -157,10 +160,11 @@ class Messenger( timerclient.TimerClient ):
 
   def announcemsg( self, mesgs ):
     if len( mesgs ) == 0:
-      PyNAO.say( "There is no message to be announced" )
+      PyPepper.say( "There is no message to be announced" )
       return
 
     curTime = time.localtime()
+    sayString = ""
     for i in mesgs:
       if i.created_at.tm_yday == curTime.tm_yday:
         sayTime = time.strftime( "Message received at %H hour %M minute", i.created_at )
@@ -170,9 +174,10 @@ class Messenger( timerclient.TimerClient ):
         frmWho = "From %s" % self.useraliases[ i.sender ]
       else:
         frmWho = "From %s" % i.sender
-      PyNAO.say( "%s %s \pau=1000\ %s \pau=2000\ " % (sayTime, frmWho, i.text) )
+      sayString += "{} {} \pau=1000\ {} \pau=2000\ ".format(sayTime, frmWho, i.text)
 
-    PyNAO.say( "Message announcement is complete" )
+    sayString += "Message announcement is complete"
+    PyPepper.say( sayString )
 
   def announce( self ):
     self.archive = self.messages + self.archive
@@ -187,12 +192,12 @@ class Messenger( timerclient.TimerClient ):
 
   def purgearchive( self ):
     if len(self.archive) == 0:
-      PyNAO.say( "No archived message to be deleted." )
+      PyPepper.say( "No archived message to be deleted." )
       return
 
     self.archive = []
     tinstate.updateStatus( constants.ARCHIVE_MESSAGES, True )
-    PyNAO.say( "All archived message have been deleted." )
+    PyPepper.say( "All archived message have been deleted." )
 
   def savestate( self ):
     f = None
@@ -206,7 +211,22 @@ class Messenger( timerclient.TimerClient ):
 
   def stoptimers( self ):
     for tid in self.timercontext:
-      PyNAO.removeTimer( tid )
+      PyPepper.removeTimer( tid )
       timermanager.delTimer( tid )
 
     self.timercontext = {}
+
+  def notifmove( self ):
+    curTime = time.time()
+    if self.notifmoveTime and (curTime - self.notifmoveTime) < 15*60:
+      return
+    self.notifmoveTime = curTime
+
+    PyPepper.setArmStiffness(True,1)
+    h='Hi\pau=1000\ You have a new message. \pau=5000\ Please tap my front head to listen to the message.'
+    #notifmove = [{'l_elbow_yaw_joint': -0.7655079960823059, 'l_elbow_roll_joint': -1.2087500095367432, 'l_shoulder_pitch_joint': -0.0920819640159607, 'l_shoulder_roll_joint': -0.035323962569236755, 'time_to_reach' : 0.7},{'l_elbow_yaw_joint': -1.020151972770691, 'l_elbow_roll_joint': -0.621228039264679, 'l_shoulder_pitch_joint': -0.9097039699554443, 'l_shoulder_roll_joint': -0.18258796632289886},{'l_elbow_yaw_joint': -1.2962720394134521, 'l_elbow_roll_joint': -0.6350340843200684, 'l_shoulder_pitch_joint': -0.9112379550933838, 'l_shoulder_roll_joint': 0.29755404591560364},{'l_elbow_yaw_joint': -1.020151972770691, 'l_elbow_roll_joint': -0.621228039264679, 'l_shoulder_pitch_joint': -0.9097039699554443, 'l_shoulder_roll_joint': -0.18258796632289886},{'l_elbow_yaw_joint': -1.2962720394134521, 'l_elbow_roll_joint': -0.6350340843200684, 'l_shoulder_pitch_joint': -0.9112379550933838, 'l_shoulder_roll_joint': 0.29755404591560364},{'l_elbow_yaw_joint': -1.020151972770691, 'l_elbow_roll_joint': -0.621228039264679, 'l_shoulder_pitch_joint': -0.9097039699554443, 'l_shoulder_roll_joint': -0.18258796632289886},{'l_elbow_yaw_joint': -1.2962720394134521, 'l_elbow_roll_joint': -0.6350340843200684, 'l_shoulder_pitch_joint': -0.9112379550933838, 'l_shoulder_roll_joint': 0.29755404591560364}, {'l_elbow_yaw_joint': 0.14415404200553894, 'l_elbow_roll_joint': -1.5446163415908813, 'l_shoulder_pitch_joint': 0.22238804399967194, 'l_shoulder_roll_joint': 0.1855720430612564}]
+    #restpos = {'l_elbow_yaw_joint': -0.6811379790306091, 'l_elbow_roll_joint': -1.2102841138839722, 'l_shoulder_pitch_joint': 1.4664621353149414, 'l_shoulder_roll_joint': 0.09966804087162018, 'frac_max_speed' : 0.2}
+    PyPepper.say(h)
+    #PyPepper.moveArmWithJointTrajectory(notifmove)
+    #time.sleep(3)
+    #PyPepper.moveArmWithJointPos(**restpos)
