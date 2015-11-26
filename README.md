@@ -34,7 +34,7 @@ You will need to compile code in the following sequence:
 * PyPepperServer
 
 ### Manual binary installation
-Under a Pepper terminal (using ssh), copy the following share library objects extracted from the packages (or copy directly from the ```build-cross-atom-release/sdk/lib``` subdirectory under the source directories) built in the previous section to ```/home/nao/naoqi/lib``` directory on the robot. You will require root privilege to copy these files on the robot.
+Under a Pepper terminal (using ssh), copy the following shared library objects extracted from the packages (or copy directly from the ```build-cross-atom-release/sdk/lib``` subdirectory under the source directories) built in the previous section to ```/home/nao/naoqi/lib``` directory on the robot.
 
 * libcrypto.so
 * libccext2.so
@@ -42,8 +42,9 @@ Under a Pepper terminal (using ssh), copy the following share library objects ex
 * libccgnu2.so
 * libcelt.so
 * libpyridecore.so
+* libpypepperserver.so
 
-Place ```libpypepperserver.so``` extracted from the PyPepperServer under ```/home/nao/naoqi/lib``` on the Pepper robot. Similarly, copy the entire ```scripts``` under the repository to ```/home/nao/naoqi/lib``` and rename the directory to ```python```.
+Similarly, copy the entire ```scripts``` under the repository to ```/home/nao/naoqi/lib``` and rename the directory to ```python```.
 
 Create an ```autoload.ini``` file under ```/home/nao/naoqi/preference``` with the following content:
 
