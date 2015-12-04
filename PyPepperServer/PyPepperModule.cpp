@@ -1166,7 +1166,7 @@ static PyObject * PyModule_PepperGetBatteryStatus( PyObject * self )
 }
 
 #define INCLUDE_COMMON_PYMODULE_MEHTODS
-#include "PyModulePyCommon.cpp"
+#include "../libsrc/pyridecore/PyModulePyCommon.cpp"
 
 static PyMethodDef PyModule_methods[] = {
   { "write", (PyCFunction)PyModule_write, METH_VARARGS,
@@ -1246,7 +1246,7 @@ static PyMethodDef PyModule_methods[] = {
   { "getBatteryStatus", (PyCFunction)PyModule_PepperGetBatteryStatus, METH_NOARGS,
     "Get the current battery status." },
 #define DEFINE_COMMON_PYMODULE_METHODS
-#include "PyModulePyCommon.cpp"
+#include "../libsrc/pyridecore/PyModulePyCommon.cpp"
   { NULL, NULL, 0, NULL }           /* sentinel */
 };
 
