@@ -9,11 +9,10 @@ software development framework for rapid robot behaviour programming in Python s
 
 \section compile Compile and Install from source for Pepper
 \subsection require Prerequisites
-PyRIDE on Pepper uses the qibuild system(v1.14.3). It requires a full PepperQi SDK(v1.14.3) installation with associated cross compiler on a Linux/OS X system. The respository contains all required third
-party libraries modified to compile under qibuild system. 
+You need NaoQi SDK 2.4.2 with the corresponding cross compiler toolchain installed on your system. You will also need qibuild 3.x build system installed.
 
 \subsection compile To compile PyRIDE for Pepper
--# Get source code: <b>git clone https://github.com/uts-magic-lab/pyride_nao.git</b> under a <b>src</b> directory.
+-# Get source code: <b>git clone https://github.com/uts-magic-lab/pyride_nao.git</b> under a working directory.
 -# Compile and install the following modules under <b>libsrc</b> subdirectory using <b>qibuild</b> and <b>qitoolchain</b> commands (see qibuild documentation for the details).
 
   - commoncpp2-1.8.1
@@ -24,15 +23,17 @@ party libraries modified to compile under qibuild system.
 -# Compile <b>PyNaoServer</b> using <b>qibuild</b>.
 
 \subsection install To install PyRIDE on Pepper
-Under a Pepper terminal (using ssh), copy the following share library objects extracted from the packages (or copy directly from the <b>build-cross-geode-release/sdk/lib</b> sub-directory under the source directories) built in the previous section to <b>/usr/lib</b> directory on the robot. You will require root privilege to copy these files on the robot.
+Under a Pepper terminal (using ssh), copy the following share library objects extracted from the packages (or copy directly from the <b>build-cross-atom-release/sdk/lib</b> sub-directory under the source directories) built in the previous section to <b>/home/nao/naoqi/lib</b> directory on the robot.
 
   - libccext2.so
   - libccrtp.so
   - libccgnu2.so
   - libcelt.so
+  - libcrypt.so
   - libpyridecore.so
+  - libpypepperserver.so
 
-Place <b>libpynaoserver.so</b> extracted from the PyNaoServer under <b>/home/nao/naoqi/lib</b> on the Pepper robot. Similarly, copy the entire <b>scripts</b> under the repository to <b>/home/nao/naoqi/lib</b> and rename the directory to <b>python</b>.
+Similarly, copy the entire <b>scripts</b> under the repository to <b>/home/nao/naoqi/lib</b> and rename the directory to <b>python</b>.
 
 Create an <b>autoload.ini</b> file under <b>/home/nao/naoqi/preference</b> with the following content:
 
