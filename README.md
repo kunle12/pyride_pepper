@@ -1,7 +1,9 @@
 # Python based Robot Interactive Development Environment (PyRIDE) for Pepper Robot
 
 ## Introduction
-This repository contains PyRIDE for Aldebaran/Softbank Pepper robots. For more detailed introduction on PyRIDE, see [README](https://github.com/uts-magic-lab/pyride_pr2/blob/master/README.md) of PyRIDE for ROS/PR2.
+This repository contains PyRIDE for Aldebaran/Softbank Pepper robots. For more detailed introduction on PyRIDE, see [README](https://github.com/uts-magic-lab/pyride_pr2/blob/master/README.md) of PyRIDE for ROS/PR2. A small demonstration of PyRIDE on Pepper is shown below in which a Pepper retrieves twitter messages and announce them by a touch to the head.
+
+[![First demo video for PyRIDE on Pepper robot](http://img.youtube.com/vi/FP9fUvsooLs/0.jpg)](http://www.youtube.com/watch?v=FP9fUvsooLs)
 
 **WARNING:** This version of PyRIDE is compatible with NaoQi SDK version 2.4.2 and below. It may require code updates in order to be compatible with later version of NaoQi SDK.
 
