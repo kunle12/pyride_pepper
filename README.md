@@ -9,7 +9,7 @@ This repository contains PyRIDE for Aldebaran/Softbank Pepper robots. For more d
 
 ## Compile source code
 ### Prerequisites
-You need NaoQi SDK 2.4.2 with the corresponding cross compiler toolchain installed on your system. You will also need qibuild 3.x build system installed.
+You need NaoQi SDK 2.4.2 with the corresponding cross compiler toolchain installed on your system. You will also need qibuild 3.11.x build system installed.
 
 ### Source code structure
 PyRIDE for Pepper is dependent on several open source third-party libraries. Since there is no prebuild library binaries, this repository contains modified source code of these libraries so that you can build and install them manually on your Pepper robots. In addition, PyRIDE on Pepper has been partitioned into two components: PyRideCore and PyPepperServer. PyRideCore contains core functionalities that are available to all supported robot platforms. PyPepperServer contains code that is specific to the Pepper robot platform. Third-party libraries and PyRideCore are under ```libsrc``` directory. PyPepperServer is located under ```PyPepperServer``` directory. ```scripts``` contains default example Python scripts that run on PyRIDE for Pepper.
@@ -24,7 +24,7 @@ qibuild package -c cross-atom --release
 To install the compiled library package, e.g. commoncpp2, on local machine:
 
 ```
-qitoolchain add-package -c cross-atom commoncpp2 ../../../package/commoncpp2-cross-atom.zip
+qitoolchain add-package -c cross-atom ../../../package/commoncpp2-cross-atom.zip
 ```
 
 You will need to compile code in the following sequence:
