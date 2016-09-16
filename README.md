@@ -5,11 +5,11 @@ This repository contains PyRIDE for Aldebaran/Softbank Pepper robots. For more d
 
 [![First demo video for PyRIDE on Pepper robot](http://img.youtube.com/vi/FP9fUvsooLs/0.jpg)](http://www.youtube.com/watch?v=FP9fUvsooLs)
 
-**WARNING:** This version of PyRIDE is compatible with NaoQi SDK version 2.4.2 and below. It may require code updates in order to be compatible with later version of NaoQi SDK.
+**WARNING:** This version of PyRIDE is compatible with NaoQi SDK version 2.4.3 and below. It may require code updates in order to be compatible with later version of NaoQi SDK.
 
 ## Compile source code
 ### Prerequisites
-You need NaoQi SDK 2.4.2 with the corresponding cross compiler toolchain installed on your system. You will also need qibuild 3.11.x build system installed.
+You need NaoQi SDK 2.4.3 with the corresponding cross compiler toolchain installed on your system. You will also need qibuild 3.11.x build system installed.
 
 ### Source code structure
 PyRIDE for Pepper is dependent on several open source third-party libraries. Since there is no prebuild library binaries, this repository contains modified source code of these libraries so that you can build and install them manually on your Pepper robots. In addition, PyRIDE on Pepper has been partitioned into two components: PyRideCore and PyPepperServer. PyRideCore contains core functionalities that are available to all supported robot platforms. PyPepperServer contains code that is specific to the Pepper robot platform. Third-party libraries and PyRideCore are under ```libsrc``` directory. PyPepperServer is located under ```PyPepperServer``` directory. ```scripts``` contains default example Python scripts that run on PyRIDE for Pepper.
@@ -28,11 +28,11 @@ qitoolchain add-package -c cross-atom ../../../package/commoncpp2-cross-atom.zip
 ```
 
 You will need to compile code in the following sequence:
-* crypto
+* crypto (openssl)
 * commoncpp2-1.8.1
 * celt-0.11.1
 * ccrtp-1.7.2
-* PyRideCore
+* pyridecore
 * PyPepperServer
 
 ### Manual binary installation
