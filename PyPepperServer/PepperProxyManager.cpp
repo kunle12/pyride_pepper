@@ -18,7 +18,7 @@ PepperProxyManager * PepperProxyManager::s_pPepperProxyManager = NULL;
 
 void * pulse_thread( void * controller )
 {
-  ((PepperProxyManager *)controller)->continuePluseChestLED();
+  ((PepperProxyManager *)controller)->continuePulseChestLED();
   return NULL;
 }
 
@@ -785,7 +785,7 @@ void PepperProxyManager::fini()
 }
 
 // helper function
-void PepperProxyManager::continuePluseChestLED()
+void PepperProxyManager::continuePulseChestLED()
 {
   while (isChestLEDPulsating_) {
     pthread_mutex_lock( &t_mutex_ );

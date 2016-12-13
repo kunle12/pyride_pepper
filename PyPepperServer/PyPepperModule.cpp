@@ -1098,7 +1098,7 @@ static PyObject * PyModule_PepperSetChestLED( PyObject * self, PyObject * args )
   Py_RETURN_NONE;
 }
 
-/*! \fn pluseChestLED(colour_one, colour_two, period)
+/*! \fn pulseChestLED(colour_one, colour_two, period)
  *  \memberof PyPepper
  *  \brief Periodically switch Pepper's chest LED between the two input colours.
  *  \param str colour_one. Colour label one.
@@ -1107,7 +1107,7 @@ static PyObject * PyModule_PepperSetChestLED( PyObject * self, PyObject * args )
  *  \return None.
  *  \note Colour must be 'red','green', 'blue', 'white', 'blank', 'yellow' or 'pink'.
  */
-static PyObject * PyModule_PepperPluseChestLED( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperPulseChestLED( PyObject * self, PyObject * args )
 {
   char * colourStr1 = NULL;
   char * colourStr2 = NULL;
@@ -1121,13 +1121,13 @@ static PyObject * PyModule_PepperPluseChestLED( PyObject * self, PyObject * args
     return NULL;
   }
   if (!colourStr2ID( colourStr1, colourID1 ) || !colourStr2ID( colourStr2, colourID2 )) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.pluseChestLED: invalid input colour(s)."
+    PyErr_Format( PyExc_ValueError, "PyPepper.pulseChestLED: invalid input colour(s)."
                  "Colour must be 'red','green', 'blue', 'white', 'blank', 'yellow' or 'pink'." );
     return NULL;
   }
 
   if (period <= 0.0) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.pluseChestLED: invalid pulse period." );
+    PyErr_Format( PyExc_ValueError, "PyPepper.pulseChestLED: invalid pulse period." );
     return NULL;
   }
 
@@ -1241,8 +1241,8 @@ static PyMethodDef PyModule_methods[] = {
     "Stop playing all audio on Pepper." },
   { "setChestLED", (PyCFunction)PyModule_PepperSetChestLED, METH_VARARGS,
     "Set the colour of the chest LEDs on Pepper." },
-  { "pluseChestLED", (PyCFunction)PyModule_PepperPluseChestLED, METH_VARARGS,
-    "Pluse the chest LED of Pepper between two colours." },
+  { "pulseChestLED", (PyCFunction)PyModule_PepperPulseChestLED, METH_VARARGS,
+    "Pulse the chest LED of Pepper between two colours." },
   { "getBatteryStatus", (PyCFunction)PyModule_PepperGetBatteryStatus, METH_NOARGS,
     "Get the current battery status." },
 #define DEFINE_COMMON_PYMODULE_METHODS
