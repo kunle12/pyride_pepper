@@ -40,7 +40,7 @@ void * videograb_thread( void * controller )
   ((NaoCam *)controller)->continueProcessing();
   return NULL;
 }
-  
+
 NaoCam::NaoCam( boost::shared_ptr<ALBroker> pBroker, const std::string & pName ) :
   broker_( pBroker ),
   procThread_( (pthread_t)NULL ),
@@ -50,15 +50,15 @@ NaoCam::NaoCam( boost::shared_ptr<ALBroker> pBroker, const std::string & pName )
   pthread_attr_init( &threadAttr_ );
   pthread_attr_setinheritsched( &threadAttr_, PTHREAD_EXPLICIT_SCHED );
   pthread_attr_setschedpolicy( &threadAttr_, SCHED_OTHER );
-  devInfo_.deviceID = "NAOCAM01";
-  devInfo_.deviceName = devInfo_.deviceLabel = "NAO Head Cam";
+  devInfo_.deviceID = "PEPPERCAM01";
+  devInfo_.deviceName = devInfo_.deviceLabel = "Pepper Head Cam";
   devInfo_.index = 0;
   devInfo_.shouldBeActive = true;
 }
 
 NaoCam::~NaoCam()
 {
-  pthread_attr_destroy( &threadAttr_ ); 
+  pthread_attr_destroy( &threadAttr_ );
 }
 
 bool NaoCam::initDevice()
@@ -75,23 +75,23 @@ bool NaoCam::initDevice()
     videoProxy_.reset();
     return isInitialised_;
   }
-  
+
   std::string GVMName = "Controller_GVM";
-  
+
   try {
     gvmName_ = videoProxy_->subscribeCamera( GVMName, AL::kTopCamera, AL::kVGA, kYUV422ColorSpace,
-                                      /*kRGBColorSpace,*/ 5 );
+                                      /*kRGBColorSpace,*/ 10 );
   }
   catch (const ALError& e) {
     ERROR_MSG( "PyPepperServer: Could not register GVM to ALVideoDevice.\n" );
     videoProxy_.reset();
     return isInitialised_;
   }
-  
+
   if (!this->getDefaultVideoSettings()) {
     return isInitialised_;
   }
- 
+
   INFO_MSG( "camera resolution = %d and is %s\n", videoProxy_->getResolution( gvmName_ ),
       (videoProxy_->isCameraOpen(AL::kTopCamera) ? "open" : "closed") );
   packetStamp_ = 0;
@@ -131,7 +131,7 @@ bool NaoCam::initWorkerThread()
 void NaoCam::finiWorkerThread()
 {
   isStreaming_ = false;
-  
+
   if (procThread_) {
     pthread_join( procThread_, NULL ); // allow thread to exit
     procThread_ = (pthread_t)NULL;
@@ -141,7 +141,7 @@ void NaoCam::finiWorkerThread()
 void NaoCam::continueProcessing()
 {
   ALImage * results;
-  
+
   //int width, height, nbLayers, colorSpace, seconds = 0;
   int rawDataSize = 0;
   unsigned char * rawData = NULL;
@@ -150,7 +150,7 @@ void NaoCam::continueProcessing()
 
   while (isStreaming_) {
     //gettimeofday( &pr1, NULL );
-    
+
     results = (ALImage *)(videoProxy_->getDirectRawImageLocal( gvmName_ ));
     if (results) {
       rawData = (unsigned char *)(results->getData());
@@ -182,16 +182,38 @@ void NaoCam::takeSnapshot( const VideoDeviceDataHandler * dataHandler )
     videoProxy_->releaseDirectRawImage( gvmName_ );
   }
 }
-  
+
+bool NaoCam::setCameraParameter( int pid, int value )
+{
+  if (pid < -1 || pid > 34) {
+    ERROR_MSG( "PyPepperServer: Invalid camera parameter %d.\n", pid );
+    return false;
+  }
+  switch (pid) {
+    case -1:
+      return videoProxy_->setAllCameraParametersToDefault( gvmName_ );
+    case 3:
+    case 14:
+    case 15:
+    case 24:
+      ERROR_MSG( "PyPepperServer: Disabled camera parameter %d.\n", pid );
+      return false;
+  }
+  if (value < 0) {
+    return videoProxy_->setCameraParameterToDefault( gvmName_, pid );
+  }
+  return videoProxy_->setCameraParameter( gvmName_, pid, value );
+}
+
 bool NaoCam::getDefaultVideoSettings()
 {
-  vSettings_.fps = 5;
+  vSettings_.fps = 10;
   vSettings_.format = RGB;
-  vSettings_.resolution = 2; // 320x240
+  vSettings_.resolution = 2; // 640x480
   vSettings_.reserved = 0;
-  
+
   this->setProcessParameters();
-  
+
   return true;
 }
 
@@ -223,7 +245,7 @@ void PyPepperServer::finiDevice()
   if (!isInitialised_) {
     return;
   }
-  
+
   this->finiWorkerThread();
 
   isInitialised_ = false;
@@ -235,7 +257,7 @@ bool PyPepperServer::initWorkerThread()
   try {
     if (audioBuffer_)
       delete [] audioBuffer_; // reset buffer just in case
-    
+
     audioBuffer_ = new AL_SOUND_FORMAT[kMaxAudioSamples];
     this->startDetection();
   }
@@ -267,21 +289,21 @@ void PyPepperServer::process( const int &pNbOfInputChannels, const int &pNbrSamp
 {
   if (!audioBuffer_)
     return;
-  
+
   //memcpy( audioBuffer_, pDataInterleaved, sizeof( AL_SOUND_FORMAT ) * pNbrSamples*pNbOfInputChannels );
-  
+
   //char nofSkippedChannels = 3;
-  
+
   const AL_SOUND_FORMAT * iterAudioDataSource = pDataInterleaved;
   const AL_SOUND_FORMAT * iterAudioDataSourceEnd = pDataInterleaved+pNbrSamples*pNbOfInputChannels;
-  
+
   AL_SOUND_FORMAT * iterAudioDataSelectedChannel = audioBuffer_;
   // take the 1st left channel
   while (iterAudioDataSource < iterAudioDataSourceEnd) {
     (*iterAudioDataSelectedChannel++) = (*iterAudioDataSource++);
     iterAudioDataSource += 3; //nofSkippedChannels;
   }
-  
+
   //printf( "captured %d audio samples data size %d nofchan %d\n", pNbrSamples, sizeof( AL_SOUND_FORMAT ) * pNbrSamples*pNbOfInputChannels, pNbOfInputChannels );
   this->processAndSendAudioData( audioBuffer_, pNbrSamples );
 }
@@ -308,10 +330,18 @@ PyPepperServer::PyPepperServer( boost::shared_ptr<ALBroker> pBroker, const std::
   functionName("onRearTactilTouched", getName(), "Method called when the head rear tactile is touched.");
   BIND_METHOD( PyPepperServer::onRearTactilTouched );
 
-  functionName("onRightHandTouched", getName(), "Method called when one of the right hand tactiles is touched.");
-  BIND_METHOD( PyPepperServer::onRightHandTouched );
-  functionName("onLeftHandTouched", getName(), "Method called when one of the left hand tactiles is touched.");
-  BIND_METHOD( PyPepperServer::onLeftHandTouched );
+  functionName("onRightHandBackTouched", getName(), "Method called when the back tactile of the right hand is touched.");
+  BIND_METHOD( PyPepperServer::onRightHandBackTouched );
+  functionName("onRightHandLeftTouched", getName(), "Method called when the left tactile of the right hand is touched.");
+  BIND_METHOD( PyPepperServer::onRightHandLeftTouched );
+  functionName("onRightHandRightTouched", getName(), "Method called when the right tactile of the right hand is touched.");
+  BIND_METHOD( PyPepperServer::onRightHandRightTouched );
+  functionName("onLeftHandBackTouched", getName(), "Method called when the back tactile of the left hand is touched.");
+  BIND_METHOD( PyPepperServer::onLeftHandBackTouched );
+  functionName("onLeftHandLeftTouched", getName(), "Method called when the left tactile of the left hand is touched.");
+  BIND_METHOD( PyPepperServer::onLeftHandLeftTouched );
+  functionName("onLeftHandRightTouched", getName(), "Method called when the right tactile of the left hand is touched.");
+  BIND_METHOD( PyPepperServer::onLeftHandRightTouched );
 
   functionName("onMovementFailed", getName(), "Method called when body movement failed.");
   BIND_METHOD( PyPepperServer::onMovementFailed );
@@ -348,17 +378,6 @@ void PyPepperServer::init()
     ERROR_MSG( "PyPepperServer: Could not create a proxy to ALMemory.\n");
     memoryProxy_.reset();
   }
-  
-  // disable default single chest button press
-  /*
-  try {
-    boost::shared_ptr<ALSentinelProxy> sentinelProxy = boost::shared_ptr<ALSentinelProxy>(new ALSentinelProxy( getParentBroker() ));
-    sentinelProxy->enableDefaultActionSimpleClick( false );
-    sentinelProxy->enableDefaultActionDoubleClick( false );
-    sentinelProxy->enableDefaultActionTripleClick( false );
-  }
-  catch (const ALError& e) {}
-  */
 
   PepperProxyManager::instance()->initWithBroker( getParentBroker(), memoryProxy_ );
   ServerDataProcessor::instance()->init( naoCams_, naoAudio_ );
@@ -366,7 +385,7 @@ void PyPepperServer::init()
   AppConfigManager::instance()->loadConfigFromFile( DEFAULT_CONFIGURATION_FILE );
   ServerDataProcessor::instance()->setClientID( AppConfigManager::instance()->clientID() );
   ServerDataProcessor::instance()->setDefaultRobotInfo( PEPPER, AppConfigManager::instance()->startPosition() );
-  
+
   PythonServer::instance()->init( AppConfigManager::instance()->enablePythonConsole(), PyPepperModule::instance() );
   ServerDataProcessor::instance()->discoverConsoles();
 
@@ -381,8 +400,12 @@ void PyPepperServer::init()
     memoryProxy_->subscribeToEvent( "MiddleTactilTouched", "PyPepperServer", "onMiddleTactilTouched" );
     memoryProxy_->subscribeToEvent( "RearTactilTouched", "PyPepperServer", "onRearTactilTouched" );
 
-    memoryProxy_->subscribeToEvent( "HandRightBackTouched", "PyPepperServer", "onRightHandTouched" );
-    memoryProxy_->subscribeToEvent( "HandLeftBackTouched", "PyPepperServer", "onLeftHandTouched" );
+    memoryProxy_->subscribeToEvent( "HandRightBackTouched", "PyPepperServer", "onRightHandBackTouched" );
+    memoryProxy_->subscribeToEvent( "HandRightLeftTouched", "PyPepperServer", "onRightHandLeftTouched" );
+    memoryProxy_->subscribeToEvent( "HandRightRightTouched", "PyPepperServer", "onRightHandRightTouched" );
+    memoryProxy_->subscribeToEvent( "HandLeftBackTouched", "PyPepperServer", "onLeftHandBackTouched" );
+    memoryProxy_->subscribeToEvent( "HandLightLeftTouched", "PyPepperServer", "onLeftHandLeftTouched" );
+    memoryProxy_->subscribeToEvent( "HandLightRightTouched", "PyPepperServer", "onLeftHandRightTouched" );
 
     memoryProxy_->subscribeToEvent( "ALMotion/MoveFailed", "PyPepperServer", "onMovementFailed" );
 
@@ -404,7 +427,7 @@ void PyPepperServer::fini()
     delete naocam;
   }
   naoCams_.clear();
-  
+
   this->finiDevice();
   naoAudio_.clear();
 
@@ -424,7 +447,7 @@ void PyPepperServer::fini()
   }*/
 }
 
-bool PyPepperServer::executeRemoteCommand( PyRideExtendedCommand command, 
+bool PyPepperServer::executeRemoteCommand( PyRideExtendedCommand command,
                                             const unsigned char * optionalData,
                                             const int optionalDataLength )
 {
@@ -459,6 +482,14 @@ bool PyPepperServer::executeRemoteCommand( PyRideExtendedCommand command,
       PepperProxyManager::instance()->updateBodyPose( newPose );
     }
       break;
+    case UPDATE_AUDIO_SETTINGS:
+    {
+      unsigned char * dataPtr = (unsigned char *)optionalData;
+      int volume;
+      memcpy( &volume, dataPtr, sizeof( int ) );
+      PepperProxyManager::instance()->setAudioVolume( volume );
+    }
+      break;
     default:
       status = false;
       break;
@@ -478,25 +509,35 @@ PyPepperServer::~PyPepperServer()
 
 #pragma callback functions from alproxies.
 
+/** @name Event Callback Functions
+ *
+ */
+/**@{*/
+/*! \typedef onBumperPressed(side)
+ *  \memberof PyPepper.
+ *  \brief Callback function when one of NAO's bumpers is pressed.
+ *  \param str side: side = "right" for the right bumper or  "left" for the left bumper or "back" for the back bumper
+ *  \return None.
+ */
 void PyPepperServer::onRightBumperPressed()
 {
   ALCriticalSection section( callbackMutex_ );
-  
+
   /**
    * Check that the bumper is pressed.
    */
   float stat =  memoryProxy_->getData( "RightBumperPressed" );
   if (stat  > 0.5f) {
     PyObject * arg = NULL;
-    
+
     PyGILState_STATE gstate;
     gstate = PyGILState_Ensure();
-    
+
     arg = Py_BuildValue( "(s)", "right" );
 
     PyPepperModule::instance()->invokeCallback( "onBumperPressed", arg );
     Py_DECREF( arg );
-    
+
     PyGILState_Release( gstate );
   }
 }
@@ -504,22 +545,22 @@ void PyPepperServer::onRightBumperPressed()
 void PyPepperServer::onLeftBumperPressed()
 {
   ALCriticalSection section( callbackMutex_ );
-  
+
   /**
    * Check that the bumper is pressed.
    */
   float stat =  memoryProxy_->getData( "LeftBumperPressed" );
   if (stat  > 0.5f) {
     PyObject * arg = NULL;
-    
+
     PyGILState_STATE gstate;
     gstate = PyGILState_Ensure();
-    
+
     arg = Py_BuildValue( "(s)", "left" );
-    
+
     PyPepperModule::instance()->invokeCallback( "onBumperPressed", arg );
     Py_DECREF( arg );
-    
+
     PyGILState_Release( gstate );
   }
 }
@@ -547,6 +588,12 @@ void PyPepperServer::onBackBumperPressed()
   }
 }
 
+/*! \typedef onHeadTactileTouched(side)
+ *  \memberof PyPepper.
+ *  \brief Callback function when one of NAO's head tactile sensor is touched.
+ *  \param str side: side = "front" for the front tactile,  "middle" for the middle tactile and "rear" from the back tactile.
+ *  \return None.
+ */
 void PyPepperServer::onFrontTactilTouched()
 {
   ALCriticalSection section( callbackMutex_ );
@@ -616,34 +663,81 @@ void PyPepperServer::onRearTactilTouched()
   }
 }
 
-void PyPepperServer::onRightHandTouched()
+/*! \typedef onRightHandTouched(side, status)
+ *  \memberof PyNAO.
+ *  \brief Callback function when one of NAO's right hand tactile sensor is touched.
+ *  \param str side. side = "back" for the back tactile,  "right" for the right tactile and "left" from the left tactile.
+ *  \param bool status. True == touch on, False == touch off.
+ *  \return None.
+ */
+void PyPepperServer::onRightHandBackTouched()
 {
   ALCriticalSection section( callbackMutex_ );
 
-  /**
-   * Check that the bumper is pressed.
-   */
   float stat =  memoryProxy_->getData( "HandRightBackTouched" );
+
   PyObject * arg = NULL;
 
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
 
-  arg = Py_BuildValue( "(s)", (stat  > 0.5f) ? "on" : "off" );
+  arg = Py_BuildValue( "(sO)", "back", (stat > 0.5f ? Py_True : Py_False) );
 
-  PyPepperModule::instance()->invokeCallback( "onRightHandTouched", arg );
+  PyNAOModule::instance()->invokeCallback( "onRightHandTouched", arg );
   Py_DECREF( arg );
 
   PyGILState_Release( gstate );
 }
 
-void PyPepperServer::onLeftHandTouched()
+void PyPepperServer::onRightHandLeftTouched()
 {
   ALCriticalSection section( callbackMutex_ );
 
-  /**
-   * Check that the bumper is pressed.
-   */
+  float stat =  memoryProxy_->getData( "HandRightLeftTouched" );
+
+  PyObject * arg = NULL;
+
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  arg = Py_BuildValue( "(sO)", "left", (stat > 0.5f ? Py_True : Py_False) );
+
+  PyNAOModule::instance()->invokeCallback( "onRightHandTouched", arg );
+  Py_DECREF( arg );
+
+  PyGILState_Release( gstate );
+}
+
+void PyPepperServer::onRightHandRightTouched()
+{
+  ALCriticalSection section( callbackMutex_ );
+
+  float stat =  memoryProxy_->getData( "HandRightRightTouched" );
+
+  PyObject * arg = NULL;
+
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  arg = Py_BuildValue( "(sO)", "right", (stat > 0.5f ? Py_True : Py_False) );
+
+  PyNAOModule::instance()->invokeCallback( "onRightHandTouched", arg );
+  Py_DECREF( arg );
+
+  PyGILState_Release( gstate );
+}
+
+/*! \typedef onLeftHandTouched(side, status)
+ *  \memberof PyPepper.
+ *  \brief Callback function when one of NAO's left hand tactile sensor is touched.
+ *  \param str side. side = "back" for the back tactile,  "right" for the right tactile and "left" from the left tactile.
+ *  \param str status. status = "on" for touch on or "off" for touch off.
+ *  \return None.
+ */
+void PyPepperServer::onLeftHandBackTouched()
+{
+  ALCriticalSection section( callbackMutex_ );
+
   float stat =  memoryProxy_->getData( "HandLeftBackTouched" );
 
   PyObject * arg = NULL;
@@ -651,9 +745,47 @@ void PyPepperServer::onLeftHandTouched()
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
 
-  arg = Py_BuildValue( "(s)", (stat  > 0.5f) ? "on" : "off" );
+  arg = Py_BuildValue( "(sO)", "back", (stat > 0.5f ? Py_True : Py_False) );
 
-  PyPepperModule::instance()->invokeCallback( "onLeftHandTouched", arg );
+  PyNAOModule::instance()->invokeCallback( "onLeftHandTouched", arg );
+  Py_DECREF( arg );
+
+  PyGILState_Release( gstate );
+}
+
+void PyPepperServer::onLeftHandLeftTouched()
+{
+  ALCriticalSection section( callbackMutex_ );
+
+  float stat =  memoryProxy_->getData( "HandLeftLeftTouched" );
+
+  PyObject * arg = NULL;
+
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  arg = Py_BuildValue( "(sO)", "left", (stat > 0.5f ? Py_True : Py_False) );
+
+  PyNAOModule::instance()->invokeCallback( "onLeftHandTouched", arg );
+  Py_DECREF( arg );
+
+  PyGILState_Release( gstate );
+}
+
+void PyPepperServer::onLeftHandRightTouched()
+{
+  ALCriticalSection section( callbackMutex_ );
+
+  float stat =  memoryProxy_->getData( "HandLeftRightTouched" );
+
+  PyObject * arg = NULL;
+
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  arg = Py_BuildValue( "(sO)", "right", (stat > 0.5f ? Py_True : Py_False) );
+
+  PyNAOModule::instance()->invokeCallback( "onLeftHandTouched", arg );
   Py_DECREF( arg );
 
   PyGILState_Release( gstate );
@@ -672,47 +804,47 @@ void PyPepperServer::onMovementFailed()
 void PyPepperServer::onSingleChestButtonPressed()
 {
   ALCriticalSection section( callbackMutex_ );
-  
+
   /**
    * Check that the button is pressed.
    */
   PyObject * arg = NULL;
-  
+
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
-  
+
   arg = Py_BuildValue( "(i)", 1 );
-  
+
   PyPepperModule::instance()->invokeCallback( "onChestButtonPressed", arg );
   Py_DECREF( arg );
-  
+
   PyGILState_Release( gstate );
 }
 
 void PyPepperServer::onDoubleChestButtonPressed()
 {
   ALCriticalSection section( callbackMutex_ );
-  
+
   /**
    * Check that the bumper is pressed.
    */
   PyObject * arg = NULL;
-  
+
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
-  
+
   arg = Py_BuildValue( "(i)", 2 );
-  
+
   PyPepperModule::instance()->invokeCallback( "onChestButtonPressed", arg );
   Py_DECREF( arg );
-  
+
   PyGILState_Release( gstate );
 }
 
 void PyPepperServer::onTripleChestButtonPressed()
 {
   ALCriticalSection section( callbackMutex_ );
-  
+
   /**
    * Check that the bumper is pressed.
    */
@@ -720,9 +852,9 @@ void PyPepperServer::onTripleChestButtonPressed()
 
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
-  
+
   arg = Py_BuildValue( "(i)", 3 );
-  
+
   PyPepperModule::instance()->invokeCallback( "onChestButtonPressed", arg );
   Py_DECREF( arg );
 
@@ -732,13 +864,13 @@ void PyPepperServer::onTripleChestButtonPressed()
 void PyPepperServer::onBatteryPowerPlugged()
 {
   ALCriticalSection section( callbackMutex_ );
-  
+
   /**
    * Check that the bumper is pressed.
    */
   bool isplugged =  memoryProxy_->getData( "BatteryPowerPluggedChanged" );
   PyObject * arg = NULL;
-    
+
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
 
@@ -746,14 +878,14 @@ void PyPepperServer::onBatteryPowerPlugged()
 
   PyPepperModule::instance()->invokeCallback( "onPowerPluggedChange", arg );
   Py_DECREF( arg );
-  
+
   PyGILState_Release( gstate );
 }
 
 void PyPepperServer::onBatteryChargeChanged()
 {
   ALCriticalSection section( callbackMutex_ );
-  
+
   /**
    * Check that the bumper is pressed.
    */
@@ -761,30 +893,30 @@ void PyPepperServer::onBatteryChargeChanged()
   bool discharging = memoryProxy_->getData( "BatteryDisChargingFlagChanged" );
 
   PyObject * arg = NULL;
-  
+
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
-  
+
   arg = Py_BuildValue( "(iO)", batpercent, discharging ? Py_True : Py_False );
-  
+
   PyPepperModule::instance()->invokeCallback( "onBatteryChargeChange", arg );
 
   Py_DECREF( arg );
-  
+
   PyGILState_Release( gstate );
 }
-  
+
 void PyPepperServer::notifySystemShutdown()
 {
   INFO_MSG( "PyPepperServer is shutting down..\n" );
 
   PyObject * arg = NULL;
-  
+
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
-  
+
   PyPepperModule::instance()->invokeCallback( "onSystemShutdown", arg );
-  
+
   PyGILState_Release( gstate );
 }
 } // namespace pyride
