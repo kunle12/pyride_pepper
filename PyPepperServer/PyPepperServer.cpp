@@ -235,6 +235,7 @@ bool PyPepperServer::initDevice()
   clientNo_ = 0;
   isStreaming_ = false;
   isInitialised_ = true;
+  aSettings_.reserved = (char)audioDevice->call<int>( "getOutputVolume" );
   INFO_MSG( "Nao audio device is successfully initialised.\n" );
   return isInitialised_;
 
