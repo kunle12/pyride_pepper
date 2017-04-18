@@ -14,6 +14,28 @@ namespace pyride {
 
 static const long kMotionCommandGapTolerance = 2 * 1000000 / kMotionCommandFreq;
 
+static const char *kPepperBodyJoints[] = {
+    "HeadYaw",
+    "HeadPitch",
+    "LShoulderPitch",
+    "LShoulderRoll",
+    "LElbowYaw",
+    "LElbowRoll",
+    "LWristYaw",
+    "LHand",
+    "HipRoll",
+    "HipPitch",
+    "KneePitch",
+    "RShoulderPitch",
+    "RShoulderRoll",
+    "RElbowYaw",
+    "RElbowRoll",
+    "RWristYaw",
+    "RHand"
+};
+
+static const int kPepperJointNo = sizeof( kPepperBodyJoints ) / sizeof( kPepperBodyJoints[0] );
+
 PepperProxyManager * PepperProxyManager::s_pPepperProxyManager = NULL;
 
 void * pulse_thread( void * controller )
@@ -111,7 +133,18 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
   if (audioPlayerProxy_) {
     INFO_MSG( "Pepper ALAudioPlayer is successfully initialised.\n" );
   }
-  
+
+  try {
+    behaviourManagerProxy_ = boost::shared_ptr<ALBehaviorManagerProxy>(new ALBehaviorManagerProxy( broker ));
+  }
+  catch (const ALError& e) {
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALBehaviourManager.\n");
+    behaviourManagerProxy_.reset();
+  }
+  if (behaviourManagerProxy_) {
+    INFO_MSG( "Pepper ALBehaviourManager is successfully initialised.\n" );
+  }
+
   try {
     motionProxy_ = boost::shared_ptr<ALMotionProxy>(new ALMotionProxy( broker ));
   }
@@ -143,7 +176,7 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     //INFO_MSG( "hand limit (%f,%f)\n", (float)jointLimits_[16][0], (float)jointLimits_[16][1] );
     INFO_MSG( "Pepper Motion is successfully initialised.\n" );
   }
-  
+
   try {
     postureProxy_ = boost::shared_ptr<ALRobotPostureProxy>(new ALRobotPostureProxy( broker ));
   }
@@ -219,8 +252,8 @@ bool PepperProxyManager::getHeadPos( float & yaw, float & pitch )
   }
   return false;
 }
-  
-void PepperProxyManager::moveHeadTo( const float yaw, const float pitch, bool absolute )
+
+void PepperProxyManager::moveHeadTo( const float yaw, const float pitch, bool relative, float frac_speed )
 {
   if (motionProxy_) {
     AL::ALValue names = "Head";
@@ -229,22 +262,22 @@ void PepperProxyManager::moveHeadTo( const float yaw, const float pitch, bool ab
 
     newHeadPos.arraySetSize( 2 );
 
-    if (absolute) {
-      newHeadPos[0] = clamp( yaw, HEAD_YAW );
-      newHeadPos[1] = clamp( pitch, HEAD_PITCH );
-    }
-    else {
+    if (relative) {
       std::vector<float> curHeadPos;
-      
+
       curHeadPos = motionProxy_->getAngles( names, true );
-      
+
       newHeadPos[0] = clamp( yaw + curHeadPos.at( 0 ), HEAD_YAW );
       newHeadPos[1] = clamp( pitch + curHeadPos.at( 1 ), HEAD_PITCH );
     }
+    else {
+      newHeadPos[0] = clamp( yaw, HEAD_YAW );
+      newHeadPos[1] = clamp( pitch, HEAD_PITCH );
+    }
     motionProxy_->setStiffnesses( names, stiff );
 
-    try { 
-      motionProxy_->angleInterpolationWithSpeed( names, newHeadPos, 0.05 );
+    try {
+      motionProxy_->angleInterpolationWithSpeed( names, newHeadPos, frac_speed );
     }
     catch (...) {
       ERROR_MSG( "Unable to set angle interpolation to %s", newHeadPos.toString().c_str() );
@@ -312,7 +345,7 @@ void PepperProxyManager::crouch()
   }
 }
 
-bool PepperProxyManager::moveBodyTo( const RobotPose & pose, float duration, bool cancelPreviousMove )
+bool PepperProxyManager::moveBodyTo( const RobotPose & pose, float duration, bool cancelPreviousMove, bool inpost )
 {
   if (!motionProxy_) {
     ERROR_MSG( "Unable to initialise walk." );
@@ -332,7 +365,10 @@ bool PepperProxyManager::moveBodyTo( const RobotPose & pose, float duration, boo
     motionProxy_->moveInit();
     moveInitialised_ = true;
   }
-  motionProxy_->post.moveTo( pose.x, pose.y, pose.theta, duration );
+  if (inpost)
+    motionProxy_->post.moveTo( pose.x, pose.y, pose.theta, duration );
+  else
+    motionProxy_->moveTo( pose.x, pose.y, pose.theta, duration );
   return true;
 }
 
@@ -429,16 +465,17 @@ void PepperProxyManager::setLegStiffness( const float stiff )
   }
 }
 
-bool PepperProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<float> & positions, float frac_speed )
+bool PepperProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<float> & positions,
+                                              float frac_speed, bool inpost )
 {
   if (!motionProxy_)
     return false;
-  
+
   int pos_size = positions.size();
   if (pos_size != 5) {
     return false;
   }
-  
+
   //AL::ALValue names = isLeftArm ? "LArm" : "RArm";
   AL::ALValue names = isLeftArm ? AL::ALValue::array( "LShoulderPitch",
                                                       "LShoulderRoll",
@@ -450,7 +487,7 @@ bool PepperProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<
                                                       "RElbowYaw",
                                                       "RElbowRoll",
                                                       "RWristYaw");
-  
+
   AL::ALValue angles;
 
   motionProxy_->setStiffnesses( names, 1.0 );
@@ -460,7 +497,10 @@ bool PepperProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<
     angles[i] = clamp( positions[i], (isLeftArm ? L_SHOULDER_PITCH + i : R_SHOULDER_PITCH + i) );
   }
   try {
-    motionProxy_->setAngles( names, angles, frac_speed );
+      if (inpost)
+        motionProxy_->setAngles( names, angles, frac_speed );
+      else
+        motionProxy_->angleInterpolationWithSpeed( names, angles, frac_speed );
   }
   catch (...) {
     ERROR_MSG( "Unable to set angle to %s", angles.toString().c_str() );
@@ -469,41 +509,43 @@ bool PepperProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<
   return true;
 }
 
-void PepperProxyManager::moveArmWithJointTrajectory( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
+bool PepperProxyManager::moveArmWithJointTrajectory( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
                                                  std::vector<float> & times_to_reach, bool inpost )
 {
   if (!motionProxy_)
-    return;
-  
+    return false;
+
   size_t traj_size = trajectory.size();
-  
-  if (traj_size <=0 || traj_size != times_to_reach.size())
-    return;
+
+  if (traj_size <= 0 || traj_size != times_to_reach.size())
+    return false;
 
   //AL::ALValue names = isLeftArm ? "LArm" : "RArm";
   AL::ALValue names = isLeftArm ? AL::ALValue::array( "LShoulderPitch",
                                                       "LShoulderRoll",
                                                       "LElbowYaw",
-                                                      "LElbowRoll" ) :
+                                                      "LElbowRoll",
+                                                      "LWristYaw" ) :
                                   AL::ALValue::array( "RShoulderPitch",
                                                       "RShoulderRoll",
                                                       "RElbowYaw",
-                                                      "RElbowRoll" );
+                                                      "RElbowRoll",
+                                                      "RWristYaw" );
   AL::ALValue joints;
   AL::ALValue times;
 
   motionProxy_->setStiffnesses( names, 1.0 );
 
-  joints.arraySetSize( 4 );
-  times.arraySetSize( 4 );
-  
-  for (size_t j = 0; j < 4; ++j) {
+  joints.arraySetSize( 5 );
+  times.arraySetSize( 5 );
+
+  for (size_t j = 0; j < 5; ++j) {
     AL::ALValue angles;
     AL::ALValue ttr;
-    
+
     angles.arraySetSize( traj_size );
     ttr.arraySetSize( traj_size );
-    
+
     joints[j] = angles;
     times[j] = ttr;
 
@@ -524,7 +566,9 @@ void PepperProxyManager::moveArmWithJointTrajectory( bool isLeftArm, std::vector
   }
   catch (...) {
     ERROR_MSG( "Unable to set angle interpolation to %s", joints.toString().c_str() );
+    return false;
   }
+  return true;
 }
 
 bool PepperProxyManager::moveLegWithJointPos( const std::vector<float> & positions, float frac_speed )
@@ -538,7 +582,7 @@ bool PepperProxyManager::moveLegWithJointPos( const std::vector<float> & positio
   }
   AL::ALValue names = "Leg";
   AL::ALValue angles;
-  
+
   motionProxy_->setStiffnesses( names, 1.0 );
 
   angles.arraySetSize( pos_size );
@@ -552,14 +596,14 @@ bool PepperProxyManager::moveLegWithJointPos( const std::vector<float> & positio
     ERROR_MSG( "Unable to set angle to %s", angles.toString().c_str() );
     return false;
   }
-  return true;  
+  return true;
 }
 
 bool PepperProxyManager::moveBodyWithJointPos( const std::vector<float> & positions, float frac_speed )
 {
   if (!motionProxy_)
     return false;
-  
+
   int pos_size = positions.size();
   if (pos_size != jointLimits_.getSize()) {
     return false;
@@ -568,7 +612,7 @@ bool PepperProxyManager::moveBodyWithJointPos( const std::vector<float> & positi
   AL::ALValue angles;
 
   motionProxy_->setStiffnesses( names, 1.0 );
-  
+
   angles.arraySetSize( pos_size );
   for (int i = 0; i < pos_size; ++i) {
     angles[i] = clamp( positions[i], i );
@@ -580,7 +624,98 @@ bool PepperProxyManager::moveBodyWithJointPos( const std::vector<float> & positi
     ERROR_MSG( "Unable to set angle to %s", angles.toString().c_str() );
     return false;
   }
-  return true;  
+  return true;
+}
+
+bool PepperProxyManager::moveBodyWithRawTrajectoryData( std::vector<std::string> joint_names, std::vector< std::vector<AngleControlPoint> > & key_frames,
+                                                 std::vector< std::vector<float> > & time_stamps, bool isBezier, bool inpost )
+{
+  // minimal check in this method. Use under you own risk!
+  // TODO: this is a silly wrapper function. Should just do a simple cast.
+  size_t joint_size = joint_names.size();
+  if (joint_size != key_frames.size() || joint_size != time_stamps.size()) {
+    ERROR_MSG( "Inconsistent trajectory data specification." );
+    return false;
+  }
+
+  AL::ALValue keys;
+  AL::ALValue times;
+
+  keys.arraySetSize( joint_size );
+  times.arraySetSize( joint_size );
+
+  for (int i = 0; i < joint_size; i++) {
+    int key_size = key_frames[i].size();
+    int ts_size = time_stamps[i].size();
+
+    keys[i].arraySetSize( key_size );
+    for (int j = 0; j < key_size; ++j) {
+      if (isBezier) {
+        keys[i][j] = AL::ALValue::array( key_frames[i][j].angle, AL::ALValue::array( key_frames[i][j].bparam1.type,
+            key_frames[i][j].bparam1.dtime, key_frames[i][j].bparam1.dangle ), AL::ALValue::array( key_frames[i][j].bparam2.type,
+                key_frames[i][j].bparam2.dtime, key_frames[i][j].bparam2.dangle ) );
+      }
+      else {
+        keys[i][j] = key_frames[i][j].angle;
+      }
+    }
+    times[i].arraySetSize( ts_size );
+    for (int j = 0; j < ts_size; ++j) {
+      times[i][j] = time_stamps[i][j];
+    }
+  }
+
+  motionProxy_->setStiffnesses( "Body", 1.0 );
+
+  try {
+    if (inpost)
+      motionProxy_->post.angleInterpolationBezier( joint_names, times, keys );
+    else
+      motionProxy_->angleInterpolationBezier( joint_names, times, keys );
+  }
+  catch (...) {
+    ERROR_MSG( "Unable to move joints in specified raw trajectories." );
+    return false;
+  }
+  return true;
+}
+
+bool PepperProxyManager::setHandPosition( bool isLeft, float openRatio, bool keepStiff )
+{
+  float oratio = 1.0;
+  if (openRatio <= 1.0 && openRatio >= 0.0) {
+    oratio = openRatio;
+  }
+
+  AL::ALValue names;
+  AL::ALValue angles;
+
+  names.arraySetSize( 1 );
+  angles.arraySetSize( 1 );
+
+  if (isLeft) {
+    names[0] = "LHand";
+    angles[0] = oratio * ((float)jointLimits_[L_HAND][1] - (float)jointLimits_[L_HAND][0]);
+    motionProxy_->setStiffnesses( "LHand", 1.0 );
+  }
+  else {
+    names[0] = "RHand";
+    angles[0] = oratio * ((float)jointLimits_[R_HAND][1] - (float)jointLimits_[R_HAND][0]);
+    motionProxy_->setStiffnesses( "RHand", 1.0 );
+  }
+
+  try {
+    motionProxy_->angleInterpolationWithSpeed( names, angles, 0.8 );
+  }
+  catch (...) {
+    ERROR_MSG( "Unable to set angle to %s", angles.toString().c_str() );
+    return false;
+  }
+
+  if (!keepStiff) {
+    motionProxy_->setStiffnesses( (isLeft ? "LHand" : "RHand"), 0.0 );
+  }
+  return true;
 }
 
 int PepperProxyManager::loadAudioFile( const std::string & text )
@@ -662,6 +797,80 @@ void PepperProxyManager::stopAllAudio()
   }
 }
 
+bool PepperProxyManager::startBehaviour( const std::string & behaviour )
+{
+  if (!behaviourManagerProxy_)
+    return false;
+
+  try {
+    behaviourManagerProxy_->startBehavior( behaviour );
+  }
+  catch (const ALError& e) {
+    ERROR_MSG( "Unable to start behaviour %s.\n", behaviour.c_str() );
+    return false;
+  }
+  return true;
+}
+
+bool PepperProxyManager::runBehaviour( const std::string & behaviour, bool inpost )
+{
+  if (!behaviourManagerProxy_)
+    return false;
+
+  try {
+    if (inpost) {
+      behaviourManagerProxy_->post.runBehavior( behaviour );
+    }
+    else {
+      behaviourManagerProxy_->runBehavior( behaviour );
+    }
+  }
+  catch (const ALError& e) {
+    ERROR_MSG( "Unable to run behaviour %s.\n", behaviour.c_str() );
+    return false;
+  }
+
+  return true;
+}
+
+void PepperProxyManager::stopBehaviour( const std::string & behaviour )
+{
+  if (behaviourManagerProxy_) {
+    try {
+      behaviourManagerProxy_->stopBehavior( behaviour );
+    }
+    catch (const ALError& e) {
+      ERROR_MSG( "Unable to stop behaviour %s.\n", behaviour.c_str() );
+    }
+  }
+}
+
+void PepperProxyManager::stopAllBehaviours()
+{
+  if (behaviourManagerProxy_) {
+    try {
+      behaviourManagerProxy_->stopAllBehaviors();
+    }
+    catch (const ALError& e) {
+      ERROR_MSG( "Unable to stop all behaviours.\n" );
+    }
+  }
+}
+
+std::vector<std::string> PepperProxyManager::getBehaviourList( bool installed )
+{
+  std::vector<std::string> list;
+  if (behaviourManagerProxy_) {
+    if (installed) {
+      return behaviourManagerProxy_->getInstalledBehaviors();
+    }
+    else {
+      return behaviourManagerProxy_->getLoadedBehaviors();
+    }
+  }
+  return list;
+}
+
 void PepperProxyManager::setChestLED( const NAOLedColour colour )
 {
   if (ledProxy_) {
@@ -712,9 +921,8 @@ void PepperProxyManager::pulsatingChestLED( const NAOLedColour colour1, const NA
   if (!ledProxy_)
     return;
 
-  
   pthread_mutex_lock( &t_mutex_ );
-  
+
   ledColourHex_.arraySetSize( 2 );
   ledColourHex_[0] = this->colour2Hex( colour1 );
   ledColourHex_[1] = this->colour2Hex( colour2 );
@@ -725,7 +933,7 @@ void PepperProxyManager::pulsatingChestLED( const NAOLedColour colour1, const NA
 
   if (isChestLEDPulsating_)
     return;
-  
+
   isChestLEDPulsating_ = true;
 
   if (pthread_create( &runningThread_, NULL, pulse_thread, this ) ) {
@@ -782,6 +990,9 @@ void PepperProxyManager::fini()
   if (audioPlayerProxy_) {
     audioPlayerProxy_.reset();
   }
+  if (behaviourManagerProxy_) {
+    behaviourManagerProxy_.reset();
+  }
 }
 
 // helper function
@@ -799,7 +1010,7 @@ void PepperProxyManager::continuePulseChestLED()
 void PepperProxyManager::timeoutCheck()
 {
   struct timeval now;
-  
+
   do {
     usleep( 10000 );
     gettimeofday( &now, NULL );
@@ -808,49 +1019,13 @@ void PepperProxyManager::timeoutCheck()
   timeoutThread_ = (pthread_t)NULL;
 }
 
-void PepperProxyManager::openHand( bool isLeft, float openRatio, bool keepStiff )
-{
-  float oratio = 1.0;
-  if (openRatio <= 1.0 && openRatio >= 0.0) {
-    oratio = openRatio;
-  }
-  
-  AL::ALValue names;
-  AL::ALValue angles;
-
-  names.arraySetSize( 1 );
-  angles.arraySetSize( 1 );
-
-  if (isLeft) {
-    names[0] = "LHand";
-    angles[0] = oratio * ((float)jointLimits_[L_HAND][1] - (float)jointLimits_[L_HAND][0]);
-    motionProxy_->setStiffnesses( "LHand", 1.0 );
-  }
-  else {
-    names[0] = "RHand";
-    angles[0] = oratio * ((float)jointLimits_[R_HAND][1] - (float)jointLimits_[R_HAND][0]);
-    motionProxy_->setStiffnesses( "RHand", 1.0 );
-  }
-
-  try {
-    motionProxy_->setAngles( names, angles, 0.8 );
-  }
-  catch (...) {
-    ERROR_MSG( "Unable to set angle to %s", angles.toString().c_str() );
-  }
-
-  if (!keepStiff) {
-    motionProxy_->setStiffnesses( (isLeft ? "LHand" : "RHand"), 0.0 );
-  }
-}
-
 float PepperProxyManager::clamp( float val, int jointInd )
 {
   if (jointInd >= jointLimits_.getSize()) {
     ERROR_MSG( "invalid joint index %d\n", jointInd );
     return val;
   }
-  
+
   if (val < (float)jointLimits_[jointInd][0]) {
     return (float)jointLimits_[jointInd][0];
   }

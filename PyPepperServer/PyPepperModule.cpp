@@ -25,12 +25,15 @@ PyDoc_STRVAR( PyPepper_doc, \
 
 PyPepperModule * PyPepperModule::s_pyPepperModule = NULL;
 
-static const char *kLeftArmKWlist[] = { "l_shoulder_pitch_joint", "l_shoulder_roll_joint",
-		"l_elbow_yaw_joint", "l_elbow_roll_joint", "l_wrist_yaw_joint", "frac_max_speed", NULL };
-static const char *kRightArmKWlist[] = { "r_shoulder_pitch_joint", "r_shoulder_roll_joint",
-		"r_elbow_yaw_joint", "r_elbow_roll_joint", "r_wrist_yaw_joint", "frac_max_speed", NULL };
+static const char *kLeftArmKWlist[] = { "l_shoulder_pitch_joint", "l_shoulder_roll_joint", "l_elbow_yaw_joint", "l_elbow_roll_joint", "l_wrist_yaw_joint",
+    "frac_max_speed", "is_blocking", NULL };
+static const char *kRightArmKWlist[] = { "r_shoulder_pitch_joint", "r_shoulder_roll_joint", "r_elbow_yaw_joint", "r_elbow_roll_joint", "r_wrist_yaw_joint",
+    "frac_max_speed", "is_blocking", NULL };
+
 static const char *kLegKWlist[] = { "hip_roll_joint", "hip_pitch_joint", "knee_pitch_joint",
     "frac_max_speed", NULL };
+
+static const char *kBodyRawJointDataKWlist[] = { "joints", "keyframes", "timestamps", "is_blocking", NULL };
 
 static const char *kBodyKWlist[] = { "head_yaw_joint", "head_pitch_joint",
   "l_shoulder_pitch_joint", "l_shoulder_roll_joint", "l_elbow_yaw_joint",
@@ -67,6 +70,37 @@ static bool colourStr2ID( const char * colourStr, NAOLedColour & colourID )
   }
   else if (!strcasecmp( colourStr, "blank" )) {
     colourID = BLANK;
+  }
+  else {
+    return false;
+  }
+  return true;
+}
+
+static bool parseIntFloatObj( PyObject * obj, float & number )
+{
+  if (!obj)
+    return false;
+
+  if (PyFloat_Check( obj )) {
+    number = PyFloat_AsDouble( obj );
+  }
+  else if (PyInt_Check( obj )) {
+    number = (float)PyInt_AsLong( obj );
+  }
+  else {
+    return false;
+  }
+  return true;
+}
+
+static bool parseIntObj( PyObject * obj, int & number )
+{
+  if (!obj)
+    return false;
+
+  if (PyInt_Check( obj )) {
+    number = (int)PyInt_AsLong( obj );
   }
   else {
     return false;
@@ -182,12 +216,13 @@ static PyObject * PyModule_PepperSayWithVolume( PyObject * self, PyObject * args
   Py_RETURN_NONE;
 }
 
-/*! \fn moveHeadTo(head_yaw, head_pitch,is_absolute)
+/*! \fn moveHeadTo(head_yaw, head_pitch, relative, frac_speed)
  *  \memberof PyPepper
  *  \brief Move the Pepper head to a specific yaw and pitch position. This new position could be either absolute head position or a relative position w.r.t the current head position.
  *  \param float head_yaw. Must be in radian.
  *  \param float head_pitch. Must be in radian.
- *  \param bool is_absolute. Optional. True = inputs represent absolute value for the new head position; False = inputs represent relative head position w.r.t. to the current head position.
+ *  \param bool relative. True == relative angle values; False == absolute angle values. Optional, default is False.
+ *  \param float frac_speed. Fraction of the maximum speed, i.e. within (0..1] Optional, default = 0.05.
  *  \return None.
  */
 static PyObject * PyModule_PepperMoveHeadTo( PyObject * self, PyObject * args )
@@ -195,15 +230,22 @@ static PyObject * PyModule_PepperMoveHeadTo( PyObject * self, PyObject * args )
   float yaw = 0.0;
   float pitch = 0.0;
   bool absolute = false;
+  float frac_speed = 0.05;
+  bool isRelative = false;
   PyObject * isYesObj = NULL;
 
-  if (!PyArg_ParseTuple( args, "ff|O", &yaw, &pitch, &isYesObj )) {
+  if (!PyArg_ParseTuple( args, "ff|Of", &yaw, &pitch, &isYesObj, &frac_speed )) {
     // PyArg_ParseTuple will set the error status.
     return NULL;
   }
+  if (frac_speed <= 0 || frac_speed > 1.0) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.moveHeadTo: frac_speed must be within (0..1]." );
+    return NULL;
+  }
+
   if (isYesObj) {
     if (PyBool_Check( isYesObj )) {
-      absolute = PyObject_IsTrue( isYesObj );
+      isRelative = PyObject_IsTrue( isYesObj );
     }
     else {
       PyErr_Format( PyExc_ValueError, "PyPepper.moveHeadTo: the third optional parameter must be a boolean!" );
@@ -211,7 +253,7 @@ static PyObject * PyModule_PepperMoveHeadTo( PyObject * self, PyObject * args )
     }
   }
 
-  PepperProxyManager::instance()->moveHeadTo( yaw, pitch, absolute );
+  PepperProxyManager::instance()->moveHeadTo( yaw, pitch, isRelative, frac_speed );
   Py_RETURN_NONE;
 }
 
@@ -307,13 +349,15 @@ static PyObject * PyModule_PepperNavigateBodyTo( PyObject * self, PyObject * arg
     Py_RETURN_FALSE;
 }
 
-/*! \fn moveBodyTo(x,y,theta,best_time)
+/*! \fn moveBodyTo(x,y,theta,best_timecancel_previous_move, is_blocking)
  *  \memberof PyPepper
  *  \brief Move the PR2 body to a pose at (x,y,theta) w.r.t the current pose.
  *  \param float x. X coordinate w.r.t. the current pose.
  *  \param float y. Y coordinate w.r.t. the current pose.
  *  \param float theta. Angular position w.r.t. the current pose.
  *  \param float best_time. Optional, ask the robot try its best to reach the input pose in this time frame.
+ *  \param bool cancel_previous_move. Optional cancel previous move command if it is still executing (default False).
+ *  \param bool is_blocking. Optional. True = blocking call; False = unblocking call (Default False).
  *  \return bool. True == valid command; False == invalid command.
  */
 static PyObject * PyModule_PepperMoveBodyTo( PyObject * self, PyObject * args )
@@ -323,16 +367,38 @@ static PyObject * PyModule_PepperMoveBodyTo( PyObject * self, PyObject * args )
   float theta = 0.0;
   float bestTime = 5.0; //seconds
 
-  if (!PyArg_ParseTuple( args, "fff|f", &xcoord, &ycoord, &theta, &bestTime )) {
+  bool cancelMove = false;
+  bool inpost = true;
+
+  PyObject * boolObj = NULL;
+  PyObject * isBlockObj = NULL;
+
+  if (!PyArg_ParseTuple( args, "fff|fOO", &xcoord, &ycoord, &theta, &bestTime, &boolObj, &isBlockObj )) {
     // PyArg_ParseTuple will set the error status.
     return NULL;
   }
+
+  if (boolObj) {
+    if (!PyBool_Check( boolObj )) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyTo: optional input parameters must be a boolean!" );
+      return NULL;
+    }
+    cancelMove = PyObject_IsTrue( boolObj );
+  }
+  if (isBlockObj) {
+    if (!PyBool_Check( isBlockObj )) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyTo: optional input parameters must be a boolean!" );
+      return NULL;
+    }
+    inpost = !PyObject_IsTrue( isBlockObj );
+  }
+
   RobotPose pose;
   pose.x = xcoord;
   pose.y = ycoord;
   pose.theta = theta;
 
-  if (PepperProxyManager::instance()->moveBodyTo( pose, bestTime ))
+  if (PepperProxyManager::instance()->moveBodyTo( pose, bestTime, cancelMove, inpost ))
     Py_RETURN_TRUE;
   else
     Py_RETURN_FALSE;
@@ -475,14 +541,14 @@ static PyObject * PyModule_PepperSetLegStiffness( PyObject * self, PyObject * ar
  *  \memberof PyPepper
  *  \brief Move a Pepper arm to a sequence of joint positions, i.e. trajectory.
  *  \param list joint_trajectory. A list of joint position dictionaries with the same structure of the PyPepper.moveArmWithJointPos.
- *  \param bool is_blocking. Optional. True = blocking call; False = unblocking call.
- *  \return None.
+ *  \param bool is_blocking. Optional. True = blocking call; False = unblocking call (Default false).
+ *  \return bool. True == valid command; False == invalid command.
  */
 static PyObject * PyModule_PepperMoveArmWithJointTraj( PyObject * self, PyObject * args )
 {
   PyObject * trajObj = NULL;
   PyObject * isYesObj = NULL;
-  bool inpost = false;
+  bool inpost = true;
 
   if (!PyArg_ParseTuple( args, "O|O", &trajObj, &isYesObj )) {
     // PyArg_ParseTuple will set the error status.
@@ -498,7 +564,7 @@ static PyObject * PyModule_PepperMoveArmWithJointTraj( PyObject * self, PyObject
 
   if (isYesObj) {
     if (PyBool_Check( isYesObj )) {
-      inpost = PyObject_IsTrue( isYesObj );
+      inpost = !PyObject_IsTrue( isYesObj );
     }
     else {
       PyErr_Format( PyExc_ValueError, "PyPepper.moveArmWithJointTrajectory: the second parameter must be a boolean!" );
@@ -540,9 +606,9 @@ static PyObject * PyModule_PepperMoveArmWithJointTraj( PyObject * self, PyObject
       }
     }
 
-    std::vector<float> arm_joint_pos( 4, 0.0 );
+    std::vector<float> arm_joint_pos( 5, 0.0 );
 
-    for (int k = 0; k < 4; k++) {
+    for (int k = 0; k < 5; k++) {
       jval = PyDict_GetItemString( jointPos, (armsel == 1 ? kLeftArmKWlist[k] : kRightArmKWlist[k]) );
       if (!jval) {
         PyErr_Format( PyExc_ValueError, "PyPepper.moveArmWithJointTrajectory: input list item %d has"
@@ -565,35 +631,39 @@ static PyObject * PyModule_PepperMoveArmWithJointTraj( PyObject * self, PyObject
     }
   }
 
-  PepperProxyManager::instance()->moveArmWithJointTrajectory( (armsel == 1), trajectory,
-                                                          times_to_reach, inpost );
-  Py_RETURN_NONE;
+  if (PepperProxyManager::instance()->moveArmWithJointTrajectory( (armsel == 1), trajectory, times_to_reach, inpost ) )
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
 }
 
-/*! \fn moveArmWithJointPos(joint_position, frac_max_speed)
+/*! \fn moveArmWithJointPos(joint_position, frac_max_speed, is_blocking)
  *  \memberof PyPepper
  *  \brief Move a Pepper's arm to the specified joint position with a certain speed.
  *  \param dict joint_position. A dictionary of arm joint positions in radian.
  *  The dictionary must the same structure as the return of PyPepper.getArmJointPositions.
  *  \param float frac_max_speed. Fraction of the maximum motor speed.
- *  \return None.
+ *  \param bool is_blocking. Optional. True = blocking call; False = unblocking call (Default False).
+ *  \return bool. True == valid command; False == invalid command.
  */
 static PyObject * PyModule_PepperMoveArmWithJointPos( PyObject * self, PyObject * args, PyObject * keywds )
 {
   float s_p_j, s_r_j, e_y_j, e_r_j, w_y_j;
   float frac_max_speed = 0.5;
+  PyObject * boolObj = NULL;
 
   bool isLeftArm = false;
+  bool inpost = true;
 
-  if (PyArg_ParseTupleAndKeywords( args, keywds, "fffff|f", (char**)kLeftArmKWlist,
-                                  &s_p_j, &s_r_j, &e_y_j, &e_r_j, &w_y_j, &frac_max_speed ))
+  if (PyArg_ParseTupleAndKeywords( args, keywds, "fffff|fO", (char**)kLeftArmKWlist,
+                                  &s_p_j, &s_r_j, &e_y_j, &e_r_j, &w_y_j, &frac_max_speed, &boolObj ))
   {
     isLeftArm = true;
   }
   else {
     PyErr_Clear();
-    if (!PyArg_ParseTupleAndKeywords( args, keywds, "fffff|f", (char**)kRightArmKWlist,
-                                     &s_p_j, &s_r_j, &e_y_j, &e_r_j, &w_y_j, &frac_max_speed ))
+    if (!PyArg_ParseTupleAndKeywords( args, keywds, "fffff|fO", (char**)kRightArmKWlist,
+                                     &s_p_j, &s_r_j, &e_y_j, &e_r_j, &w_y_j, &frac_max_speed, &boolObj ))
     {
       // PyArg_ParseTuple will set the error status.
       return NULL;
@@ -605,6 +675,16 @@ static PyObject * PyModule_PepperMoveArmWithJointPos( PyObject * self, PyObject 
     return NULL;
   }
 
+  if (boolObj) {
+    if (PyBool_Check( boolObj )) {
+      inpost = !PyObject_IsTrue( boolObj );
+    }
+    else {
+      PyErr_Format( PyExc_ValueError, "PyPepper.moveArmWithJointPos: is_blocking parameter must be a boolean!" );
+      return NULL;
+    }
+  }
+
   std::vector<float> positions( 5, 0.0 );
   positions[0] = s_p_j;
   positions[1] = s_r_j;
@@ -612,8 +692,10 @@ static PyObject * PyModule_PepperMoveArmWithJointPos( PyObject * self, PyObject 
   positions[3] = e_r_j;
   positions[4] = w_y_j;
 
-  PepperProxyManager::instance()->moveArmWithJointPos( isLeftArm, positions, frac_max_speed );
-  Py_RETURN_NONE;
+  if (PepperProxyManager::instance()->moveArmWithJointPos( isLeftArm, positions, frac_max_speed, inpost ))
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
 }
 
 /*! \fn moveLegWithJointPos(joint_position, frac_max_speed)
@@ -622,7 +704,7 @@ static PyObject * PyModule_PepperMoveArmWithJointPos( PyObject * self, PyObject 
  *  \param dict joint_position. A dictionary of leg joint positions in radian.
  *  The dictionary must the same structure as the return of PyPepper.getLegJointPositions.
  *  \param float frac_max_speed. Fraction of the maximum motor speed.
- *  \return None.
+ *  \return bool. True == valid command; False == invalid command.
  */
 static PyObject * PyModule_PepperMoveLegWithJointPos( PyObject * self, PyObject * args, PyObject * keywds )
 {
@@ -646,8 +728,10 @@ static PyObject * PyModule_PepperMoveLegWithJointPos( PyObject * self, PyObject 
   positions[1] = h_p_j;
   positions[2] = k_p_j;
 
-  PepperProxyManager::instance()->moveLegWithJointPos( positions, frac_max_speed );
-  Py_RETURN_NONE;
+  if (PepperProxyManager::instance()->moveLegWithJointPos( positions, frac_max_speed ))
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
 }
 
 /*! \fn moveBodyWithJointPos(joint_position, frac_max_speed)
@@ -656,7 +740,7 @@ static PyObject * PyModule_PepperMoveLegWithJointPos( PyObject * self, PyObject 
  *  \param dict joint_position. A dictionary of body joint positions in radian.
  *  The dictionary must the same structure as the return of PyPepper.getBodyJointPositions.
  *  \param float frac_max_speed. Fraction of the maximum motor speed.
- *  \return None.
+ *  \return bool. True == valid command; False == invalid command.
  */
 static PyObject * PyModule_PepperMoveBodyWithJointPos( PyObject * self, PyObject * args, PyObject * keywds )
 {
@@ -705,55 +789,331 @@ static PyObject * PyModule_PepperMoveBodyWithJointPos( PyObject * self, PyObject
   positions[15] = r_w_y_j;
   positions[16] = r_hand_j;
 
-  PepperProxyManager::instance()->moveBodyWithJointPos( positions, frac_max_speed );
-  Py_RETURN_NONE;
+  if (PepperProxyManager::instance()->moveBodyWithJointPos( positions, frac_max_speed ))
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
 }
 
-/*! \fn openHand(left_hand, ratio, keep_stiffness)
+/*! \fn moveBodyWithRawTrajectoryData(joint_trajectory_data)
  *  \memberof PyPepper
- *  \brief Open one of the Pepper hands to a ratio of allowed hand joint limit value.
- *  \param bool left_arm. True for left arm; False for right arm.
- *  \param float ratio. Optional, ratio between 0.0 and 1.0. 1.0 means the hand is fully open. Default is 1.0
- *  \param bool keep_stiffness. Optional, True for keep the stiffness on after the action; otherwise False.
- *  \return None.
+ *  \brief Move the Pepper body joints in specified trajectories.
+ *  \param dict joint_trajectory_data. A dictionary of {joints, keyframes, timestamps, is_blocking} where
+ *  joints is a list of joint names that are factory defined, keyframes is a list of corresponding joint values (trajectory)
+ *  for each joint specified in joints; timestamps is a list of corresponding time to reach values for the keyframes
+ *  for each joint specified in joints; is_blocking is a boolean for whether the call is blocking.
+ *  \return bool. True == valid command; False == invalid command.
+ *  \warning This method is not for general use. You need to know what you are doing.
  */
-static PyObject * PyModule_PepperOpenHand( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperMoveBodyWithRawTrajectoryData( PyObject * self, PyObject * args, PyObject * keywds )
 {
-  PyObject * armSelObj = NULL;
-  PyObject * keepStiffObj = NULL;
-  float oratio = 1.0;
+  PyObject * jointsObj = NULL;
+  PyObject * timesObj = NULL;
+  PyObject * keyframesObj = NULL;
+  PyObject * boolObj = NULL;
+  bool inpost = false;
+  bool isbezier = false;
 
-  bool keep_stiff = false;
-
-  if (!PyArg_ParseTuple( args, "O|fO", &armSelObj, &oratio, &keepStiffObj )) {
+  if (!PyArg_ParseTupleAndKeywords( args, keywds, "OOO|O",
+                                   (char**)kBodyRawJointDataKWlist, &jointsObj, &keyframesObj, &timesObj, &boolObj ))
+  {
     // PyArg_ParseTuple will set the error status.
     return NULL;
   }
 
-  if (!PyBool_Check( armSelObj )) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.openHand: first input parameter must be a boolean!" );
+  int listSize = 0, sublistSize = 0;
+  PyObject * obj = NULL;
+
+  if (!PyList_Check( jointsObj ) || (listSize = PyList_Size( jointsObj )) == 0) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: joint list parameter must be a non empty list of joint names defined by Pepper spec!" );
     return NULL;
   }
 
-  if (oratio > 1.0 || oratio < 0.0) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.openHand: second input parameter must be a float with in [0..1.0]!" );
+  if (!PyList_Check( keyframesObj ) || (PyList_Size( keyframesObj )) != listSize) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: keyframes parameter must be a list of joint values that matches with input joints!" );
     return NULL;
   }
 
-  bool isLeftArm = PyObject_IsTrue( armSelObj );
+  if (!PyList_Check( timesObj ) || (PyList_Size( timesObj )) != listSize) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: times parameter must be a list of timestamps that matches with input joints!" );
+    return NULL;
+  }
 
-  if (keepStiffObj) {
-    if (PyBool_Check( keepStiffObj )) {
-      keep_stiff = PyObject_IsTrue( keepStiffObj );
+  std::vector<std::string> joint_names;
+  for (int i = 0; i < listSize; ++i) {
+    obj = PyList_GetItem( jointsObj, i );
+    if (!PyString_Check( obj )) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d "
+                   "must be a string that corresponding to a Pepper joint!", i );
+      return NULL;
+    }
+    joint_names.push_back( PyString_AsString( obj ) );
+  }
+
+  std::vector< std::vector<AngleControlPoint> > key_frames;
+  for (int i = 0; i < listSize; ++i) {
+    obj = PyList_GetItem( keyframesObj, i );
+    if (!PyList_Check( obj ) || (sublistSize = PyList_Size( obj )) == 0) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d "
+                   "must be a list of joint values for Pepper joint %s!", i, joint_names[i].c_str() );
+      return NULL;
+    }
+    std::vector<AngleControlPoint> joint_values;
+    joint_values.resize( sublistSize );
+    // check the first element to determine whether the inputs are bezier control points.
+    isbezier = PyList_Check( PyList_GetItem( obj, 0 ) );
+    PyObject * jval = NULL;
+    for (int j = 0; j < sublistSize; ++j) {
+      jval = PyList_GetItem( obj, j );
+      if (isbezier) {
+        if (PyList_Check( jval ) && PyList_Size( jval ) == 3) {
+          PyObject * val0 = PyList_GetItem( jval, 0 );
+          PyObject * val1 = PyList_GetItem( jval, 1 );
+          PyObject * val2 = PyList_GetItem( jval, 2 );
+
+          if (!parseIntFloatObj( val0, joint_values[j].angle )) {
+            PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d has an"
+                         " invalid angle value in joint control point for Pepper joint %s!", j, joint_names[i].c_str() );
+            return NULL;
+          }
+          if (!PyList_Check( val1 ) || PyList_Size( val1 ) != 3 ||
+              !PyList_Check( val2 ) || PyList_Size( val2 ) != 3)
+          {
+            PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d has an"
+                         " invalid bezier parameters in joint control point for Pepper joint %s!", j, joint_names[i].c_str() );
+            return NULL;
+          }
+          PyObject * v0 = PyList_GetItem( val1, 0 );
+          PyObject * v1 = PyList_GetItem( val1, 1 );
+          PyObject * v2 = PyList_GetItem( val1, 2 );
+
+          if (!parseIntObj( v0, joint_values[j].bparam1.type ) ||
+              !parseIntFloatObj( v1, joint_values[j].bparam1.dtime ) ||
+              !parseIntFloatObj( v2, joint_values[j].bparam1.dangle ) )
+          {
+            PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d has an"
+                         " invalid first bezier parameter in joint control point for Pepper joint %s!", j, joint_names[i].c_str() );
+            return NULL;
+          }
+          v0 = PyList_GetItem( val2, 0 );
+          v1 = PyList_GetItem( val2, 1 );
+          v2 = PyList_GetItem( val2, 2 );
+
+          if (!parseIntObj( v0, joint_values[j].bparam2.type ) ||
+              !parseIntFloatObj( v1, joint_values[j].bparam2.dtime ) ||
+              !parseIntFloatObj( v2, joint_values[j].bparam2.dangle ) )
+          {
+            PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d has an"
+                         " invalid second bezier parameter in joint control point for Pepper joint %s!", j, joint_names[i].c_str() );
+            return NULL;
+          }
+        }
+        else {
+          PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d is an"
+                       " invalid joint control point for Pepper joint %s!", j, joint_names[i].c_str() );
+          return NULL;
+        }
+      }
+      else {
+        if (!parseIntFloatObj( jval, joint_values[j].angle )) {
+          PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d is an"
+                       " invalid joint value for Pepper joint %s!", j, joint_names[i].c_str() );
+          return NULL;
+        }
+      }
+    }
+    key_frames.push_back( joint_values );
+  }
+
+  std::vector< std::vector<float> > time_stamps;
+  for (int i = 0; i < listSize; ++i) {
+    obj = PyList_GetItem( timesObj, i );
+    if (!PyList_Check( obj ) || (sublistSize = PyList_Size( obj )) == 0) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d "
+                   "must be a list of timestamps for Pepper joint %s!", i, joint_names[i].c_str() );
+      return NULL;
+    }
+    std::vector<float> time_values( sublistSize, 0.0 );
+    PyObject * tval = NULL;
+    for (int j = 0; j < sublistSize; ++j) {
+      tval = PyList_GetItem( obj, j );
+      if (!parseIntFloatObj( tval, time_values[j] )) {
+        PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d is an"
+                     " invalid timestamp for Pepper joint %s!", j, joint_names[i].c_str() );
+        return NULL;
+      }
+    }
+    time_stamps.push_back( time_values );
+  }
+
+  if (boolObj) {
+    if (PyBool_Check( boolObj )) {
+      inpost = !PyObject_IsTrue( boolObj );
     }
     else {
-      PyErr_Format( PyExc_ValueError, "PyPepper.openHand: third input parameter must be a boolean!" );
+      PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: the last parameter must be a boolean!" );
       return NULL;
     }
   }
 
-  PepperProxyManager::instance()->openHand( isLeftArm, oratio, keep_stiff );
-  Py_RETURN_NONE;
+  if (PepperProxyManager::instance()->moveBodyWithRawTrajectoryData( joint_names, key_frames, time_stamps, isbezier, inpost ))
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
+}
+
+/*! \fn openHand(which_hand, keep_stiffness)
+ *  \memberof PyPepper
+ *  \brief Opens one or both Pepper hands.
+ *  \param int which_hand. 1 = left hand, 2 = right hand and 3 = both hand.
+ *  \param bool keep_stiffness. Optional, keep stiffness on after opening the hand (default False).
+ *  \return bool. True == valid command; False == invalid command.
+ */
+static PyObject * PyModule_PepperOpenHand( PyObject * self, PyObject * args )
+{
+  int mode = 0;
+  bool keepStiffness = false;
+  PyObject * boolObj = NULL;
+
+  if (!PyArg_ParseTuple( args, "i|O", &mode, &boolObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  if (boolObj) {
+    if (!PyBool_Check( boolObj )) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.openHand: last optional input parameter must be a boolean!" );
+      return NULL;
+    }
+    keepStiffness = PyObject_IsTrue( boolObj );
+  }
+
+  switch (mode) {
+    case 1:
+      if (PepperProxyManager::instance()->setHandPosition( true, 1.0, keepStiffness ))
+        Py_RETURN_TRUE;
+      break;
+    case 2:
+      if (PepperProxyManager::instance()->setHandPosition( false, 1.0, keepStiffness ))
+        Py_RETURN_TRUE;
+      break;
+    case 3:
+      if (PepperProxyManager::instance()->setHandPosition( true, 1.0, keepStiffness ) &&
+          PepperProxyManager::instance()->setHandPosition( false, 1.0, keepStiffness ))
+      {
+        Py_RETURN_TRUE;
+      }
+      break;
+    default:
+      PyErr_Format( PyExc_ValueError, "PyPepper.openHand: invalid hand number! 1 = left hand, 2 = right hand and 3 = both hand." );
+      return NULL;
+  }
+  Py_RETURN_FALSE;
+}
+
+/*! \fn closeHand(which_hand, keep_stiffness)
+ *  \memberof PyPepper
+ *  \brief Closes one or both Pepper hands.
+ *  \param int which_hand. 1 = left hand, 2 = right hand and 3 = both hands.
+ *  \param bool keep_stiffness. Optional, keep stiffness on after closing the hand (default False).
+ *  \return bool. True == valid command; False == invalid command.
+ */
+static PyObject * PyModule_PepperCloseHand( PyObject * self, PyObject * args )
+{
+  int mode = 0;
+  bool keepStiffness = false;
+  PyObject * boolObj = NULL;
+
+  if (!PyArg_ParseTuple( args, "i|O", &mode, &boolObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  if (boolObj) {
+    if (!PyBool_Check( boolObj )) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.closeHand: last optional input parameter must be a boolean!" );
+      return NULL;
+    }
+    keepStiffness = PyObject_IsTrue( boolObj );
+  }
+
+  switch (mode) {
+    case 1:
+      if (PepperProxyManager::instance()->setHandPosition( true, 0.0, keepStiffness ))
+        Py_RETURN_TRUE;
+      break;
+    case 2:
+      if (PepperProxyManager::instance()->setHandPosition( false, 0.0, keepStiffness ))
+        Py_RETURN_TRUE;
+      break;
+    case 3:
+      if (PepperProxyManager::instance()->setHandPosition( true, 0.0, keepStiffness ) &&
+          PepperProxyManager::instance()->setHandPosition( false, 0.0, keepStiffness ))
+      {
+        Py_RETURN_TRUE;
+      }
+      break;
+    default:
+      PyErr_Format( PyExc_ValueError, "PyPepper.closeHand: invalid hand number! 1 = left hand, 2 = right hand and 3 = both hand." );
+      return NULL;
+  }
+  Py_RETURN_FALSE;
+}
+
+/*! \fn setHandPosition(which_hand, hand_joint_ratio, keep_stiffness)
+ *  \memberof PyPepper
+ *  \brief open one of Pepper hands to the specified ratio [0..1.0].
+ *  \param int which_hand. 1 = left hand, 2 = right hand and 3 = both hands.
+ *  \param float hand_joint_ratio. Hand opening ratio [0..1.0].
+ *  \param bool keep_stiffness. Optional, keep stiffness on after closing the hand (default False).
+ */
+static PyObject * PyModule_PepperSetHandPosition( PyObject * self, PyObject * args, PyObject * keywds  )
+{
+  int mode = 0;
+  float ratio = 0.0;
+  PyObject * boolObj = NULL;
+
+  bool keepStiffness = false;
+
+  if (!PyArg_ParseTuple( args, "if|O", &mode, &ratio, &boolObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  if (ratio < 0.0 || ratio > 1.0) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.setHandPosition: ratio parameter must be within [0..1.0]!" );
+    return NULL;
+  }
+
+  if (boolObj) {
+    if (!PyBool_Check( boolObj )) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.setHandPosition: last optional input parameter must be a boolean!" );
+      return NULL;
+    }
+    keepStiffness = PyObject_IsTrue( boolObj );
+  }
+
+  switch (mode) {
+    case 1:
+      if (PepperProxyManager::instance()->setHandPosition( true, ratio, keepStiffness ))
+        Py_RETURN_TRUE;
+      break;
+    case 2:
+      if (PepperProxyManager::instance()->setHandPosition( false, ratio, keepStiffness ))
+        Py_RETURN_TRUE;
+      break;
+    case 3:
+      if (PepperProxyManager::instance()->setHandPosition( true, ratio, keepStiffness ) &&
+          PepperProxyManager::instance()->setHandPosition( false, ratio, keepStiffness ))
+      {
+        Py_RETURN_TRUE;
+      }
+      break;
+    default:
+      PyErr_Format( PyExc_ValueError, "PyPepper.setHandPosition: invalid hand number! 1 = left hand, 2 = right hand and 3 = both hand." );
+      return NULL;
+  }
+  Py_RETURN_FALSE;
 }
 
 /*! \fn getArmJointPositions(left_arm)
@@ -1068,6 +1428,131 @@ static PyObject * PyModule_PepperStopAllAudio( PyObject * self )
   Py_RETURN_NONE;
 }
 
+/*! \fn startBehaviour(name)
+ *  \memberof PyPepper
+ *  \brief Start playing a behaviour.
+ *  \param str name. The name of the behaviour.
+ *  \return bool. True == valid command; False == invalid command.
+ */
+/**@}*/
+static PyObject * PyModule_PepperStartBehaviour( PyObject * self, PyObject * args )
+{
+  char * name = NULL;
+
+  if (!PyArg_ParseTuple( args, "s", &name )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  if (PepperProxyManager::instance()->startBehaviour( name )) {
+    Py_RETURN_TRUE;
+  }
+  else {
+    Py_RETURN_FALSE;
+  }
+}
+
+/*! \fn runBehaviour(name, is_blocking)
+ *  \memberof PyPepper
+ *  \brief Run a behaviour.
+ *  \param str name. The name of the behaviour.
+ *  \param bool is_blocking. Optional, True = blocking call, False = non blocking. Default: False.
+ *  \return bool. True == valid command; False == invalid command.
+ */
+/**@}*/
+static PyObject * PyModule_PepperRunBehaviour( PyObject * self, PyObject * args )
+{
+  char * name = NULL;
+  bool inpost = true;
+  PyObject * boolObj = NULL;
+
+  if (!PyArg_ParseTuple( args, "s|O", &name, boolObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  if (boolObj) {
+    if (!PyBool_Check( boolObj )) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.runBehaviour: last optional input parameter must be a boolean!" );
+      return NULL;
+    }
+    inpost = !PyObject_IsTrue( boolObj );
+  }
+
+  if (PepperProxyManager::instance()->runBehaviour( name, inpost )) {
+    Py_RETURN_TRUE;
+  }
+  else {
+    Py_RETURN_FALSE;
+  }
+}
+
+/*! \fn stopBehaviour(name)
+ *  \memberof PyPepper
+ *  \brief Stop a currently playing behaviours.
+ *  \param str name. The name of the behaviour.
+ *  \return None.
+ */
+/**@}*/
+static PyObject * PyModule_PepperStopBehaviour( PyObject * self, PyObject * args )
+{
+  char * name = NULL;
+
+  if (!PyArg_ParseTuple( args, "s", &name )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  PepperProxyManager::instance()->stopBehaviour( name );
+  Py_RETURN_NONE;
+}
+
+/*! \fn stopAllBehaviours()
+ *  \memberof PyPepper
+ *  \brief Stop all playing behaviours.
+ *  \return None.
+ */
+/**@}*/
+static PyObject * PyModule_PepperStopAllBehaviours( PyObject * self )
+{
+  PepperProxyManager::instance()->stopAllBehaviours();
+  Py_RETURN_NONE;
+}
+
+/*! \fn getBehaviourList(installed)
+ *  \memberof PyPepper
+ *  \brief Return a list of loaded (or installed) default behaviours on Pepper.
+ *  \param bool installed. Optional. True = Installed behaviours; False = Loaded behaviours. Default: False
+ *  \return None.
+ */
+static PyObject * PyModule_PepperGetBehaviourList( PyObject * self, PyObject * args )
+{
+  PyObject * isYesObj = NULL;
+  bool isYes = false;
+
+  if (!PyArg_ParseTuple( args, "|O", &isYesObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+  if (isYesObj) {
+    if (PyBool_Check( isYesObj )) {
+      isYes = PyObject_IsTrue( isYesObj );
+    }
+    else {
+      PyErr_Format( PyExc_ValueError, "PyPepper.getBehavourList: the parameter must be a boolean!" );
+      return NULL;
+    }
+  }
+  std::vector<std::string> list = PepperProxyManager::instance()->getBehaviourList( isYes );
+  size_t list_size = list.size();
+  PyObject * retObj = PyList_New( list_size );
+  for (size_t i = 0; i < list_size; i++) {
+    PyObject * strObj = PyString_FromString( list.at( i ).c_str() );
+    PyList_SetItem( retObj, i, strObj );
+  }
+  return retObj;
+}
+
 /** @name Miscellaneous Functions
  *
  */
@@ -1133,6 +1618,29 @@ static PyObject * PyModule_PepperPulseChestLED( PyObject * self, PyObject * args
 
   PepperProxyManager::instance()->pulsatingChestLED( colourID1, colourID2, period );
   Py_RETURN_NONE;
+}
+
+/*! \fn setCameraParameter(parameter_id, value)
+ *  \memberof PyPepper
+ *  \brief Set a camera parameter value.
+ *  \param int parameter_id. The integer ID of the parameter. If parameter_id is not set, this method will set all camera parameters to their default values.
+ *  \param int value. The value for the parameter. If value is not set, this method will set the specified camera parameter to its default value.
+ *  \return boolean. True == successful; otherwise failed.
+ */
+static PyObject * PyModule_PepperSetCameraParameter( PyObject * self, PyObject * args )
+{
+  int pid = -1;
+  int value = -1;
+
+  if (!PyArg_ParseTuple( args, "|ii", &pid, &value )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  if (ServerDataProcessor::instance()->setCameraParameter( 0, pid, value )) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
 }
 
 /*! \fn getBatteryStatus()
@@ -1211,16 +1719,22 @@ static PyMethodDef PyModule_methods[] = {
     "Move one of Pepper legs with specific joint positions." },
   { "moveBodyWithJointPos", (PyCFunction)PyModule_PepperMoveBodyWithJointPos, METH_VARARGS|METH_KEYWORDS,
     "Move Pepper all body joint positions." },
+  { "moveBodyWithRawTrajectoryData", (PyCFunction)PyModule_PepperMoveBodyWithRawTrajectoryData, METH_VARARGS|METH_KEYWORDS,
+    "Move Pepper all body joints in fully specified trajectories." },
   { "getArmJointPositions", (PyCFunction)PyModule_PepperGetArmJointPositions, METH_VARARGS,
     "Get joint positions of Pepper's arms." },
   { "getLegJointPositions", (PyCFunction)PyModule_PepperGetLegJointPositions, METH_VARARGS,
     "Get joint positions of Pepper's torso." },
   { "getBodyJointPositions", (PyCFunction)PyModule_PepperGetBodyJointPositions, METH_VARARGS,
     "Get full joint positions of Pepper." },
-  { "openHand", (PyCFunction)PyModule_PepperOpenHand, METH_VARARGS,
-     "Open one of the Pepper's hands to an allowed size. " },
   { "setAutonomousAbility", (PyCFunction)PyModule_PepperSetAutonomousAbility, METH_VARARGS,
      "Set the autonomous ability of the Pepper. " },
+  { "openHand", (PyCFunction)PyModule_PepperOpenHand, METH_VARARGS,
+    "Open one or both Pepper hands. Parameters: which_hand. 1 = left hand, 2 = right hand and 3 = both hand, (optional) keep stiffness on after closing the hand (default False)" },
+  { "closeHand", (PyCFunction)PyModule_PepperCloseHand, METH_VARARGS,
+    "Close one or both Pepper hand. Parameter: which_hand. 1 = left hand, 2 = right hand and 3 = both hand, (optional) keep stiffness on after closing the hand (default False)" },
+  { "setHandPosition", (PyCFunction)PyModule_PepperSetHandPosition, METH_VARARGS,
+    "Set specific opening ratio on one or both Pepper hands. Parameters: which_hand. 1 = left hand, 2 = right hand and 3 = both hands. Float [0.0, 1.0] amount of closing, (optional) keep stiffness on after closing the hand (default False)." },
   { "loadAudioFile", (PyCFunction)PyModule_PepperLoadAudioFile, METH_VARARGS,
     "Load an audio file on Pepper." },
   { "unloadAudioFile", (PyCFunction)PyModule_PepperUnloadAudioFile, METH_VARARGS,
@@ -1239,12 +1753,24 @@ static PyMethodDef PyModule_methods[] = {
     "Pause a playing audio file." },
   { "stopAllAudio", (PyCFunction)PyModule_PepperStopAllAudio, METH_NOARGS,
     "Stop playing all audio on Pepper." },
+  { "startBehaviour", (PyCFunction)PyModule_PepperStartBehaviour, METH_VARARGS,
+    "Start playing a behaviour on Pepper. Parameter: string name of the behaviour." },
+  { "runBehaviour", (PyCFunction)PyModule_PepperRunBehaviour, METH_VARARGS,
+    "Run a behaviour on Pepper. Parameter: string name of the behaviour, optional boolean. True = blocking call, False = blocking. Default: False." },
+  { "stopBehaviour", (PyCFunction)PyModule_PepperStopBehaviour, METH_VARARGS,
+    "Stop a current playing behaviour on Pepper. Parameter: string name of the behaviour." },
+  { "stopAllBehaviours", (PyCFunction)PyModule_PepperStopAllBehaviours, METH_NOARGS,
+    "Stop all playing behaviours on Pepper." },
+  { "getBehaviourList", (PyCFunction)PyModule_PepperGetBehaviourList, METH_VARARGS,
+    "Get a list of loaded (or installed) behaviours on Pepper." },
   { "setChestLED", (PyCFunction)PyModule_PepperSetChestLED, METH_VARARGS,
     "Set the colour of the chest LEDs on Pepper." },
   { "pulseChestLED", (PyCFunction)PyModule_PepperPulseChestLED, METH_VARARGS,
     "Pulse the chest LED of Pepper between two colours." },
   { "getBatteryStatus", (PyCFunction)PyModule_PepperGetBatteryStatus, METH_NOARGS,
     "Get the current battery status." },
+  { "setCameraParameter", (PyCFunction)PyModule_PepperSetCameraParameter, METH_VARARGS,
+    "Set Pepper camera parameter. Input: int parameter id, int value. Check Pepper document for details. Default with no inputs sets parameter(s) to default values" },
 #define DEFINE_COMMON_PYMODULE_METHODS
 #include "../libsrc/pyridecore/PyModulePyCommon.cpp"
   { NULL, NULL, 0, NULL }           /* sentinel */

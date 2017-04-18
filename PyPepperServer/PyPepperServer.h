@@ -85,11 +85,7 @@ public:
   void onRearTactilTouched();
 
   void onRightHandBackTouched();
-  void onRightHandLeftTouched();
-  void onRightHandRightTouched();
   void onLeftHandBackTouched();
-  void onLeftHandLeftTouched();
-  void onLeftHandRightTouched();
 
   void onMovementFailed();
 

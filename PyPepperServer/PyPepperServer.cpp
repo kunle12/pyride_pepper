@@ -311,7 +311,7 @@ void PyPepperServer::process( const int &pNbOfInputChannels, const int &pNbrSamp
 // implementation of PyPepperServer
 PyPepperServer::PyPepperServer( boost::shared_ptr<ALBroker> pBroker, const std::string & pName ) :
   ALSoundExtractor( pBroker, pName ),
-  AudioDevice( 1 ),
+  AudioDevice(),
   audioBuffer_( NULL ),
   callbackMutex_( ALMutex::createALMutex() )
 {
@@ -332,16 +332,8 @@ PyPepperServer::PyPepperServer( boost::shared_ptr<ALBroker> pBroker, const std::
 
   functionName("onRightHandBackTouched", getName(), "Method called when the back tactile of the right hand is touched.");
   BIND_METHOD( PyPepperServer::onRightHandBackTouched );
-  functionName("onRightHandLeftTouched", getName(), "Method called when the left tactile of the right hand is touched.");
-  BIND_METHOD( PyPepperServer::onRightHandLeftTouched );
-  functionName("onRightHandRightTouched", getName(), "Method called when the right tactile of the right hand is touched.");
-  BIND_METHOD( PyPepperServer::onRightHandRightTouched );
   functionName("onLeftHandBackTouched", getName(), "Method called when the back tactile of the left hand is touched.");
   BIND_METHOD( PyPepperServer::onLeftHandBackTouched );
-  functionName("onLeftHandLeftTouched", getName(), "Method called when the left tactile of the left hand is touched.");
-  BIND_METHOD( PyPepperServer::onLeftHandLeftTouched );
-  functionName("onLeftHandRightTouched", getName(), "Method called when the right tactile of the left hand is touched.");
-  BIND_METHOD( PyPepperServer::onLeftHandRightTouched );
 
   functionName("onMovementFailed", getName(), "Method called when body movement failed.");
   BIND_METHOD( PyPepperServer::onMovementFailed );
@@ -401,11 +393,7 @@ void PyPepperServer::init()
     memoryProxy_->subscribeToEvent( "RearTactilTouched", "PyPepperServer", "onRearTactilTouched" );
 
     memoryProxy_->subscribeToEvent( "HandRightBackTouched", "PyPepperServer", "onRightHandBackTouched" );
-    memoryProxy_->subscribeToEvent( "HandRightLeftTouched", "PyPepperServer", "onRightHandLeftTouched" );
-    memoryProxy_->subscribeToEvent( "HandRightRightTouched", "PyPepperServer", "onRightHandRightTouched" );
     memoryProxy_->subscribeToEvent( "HandLeftBackTouched", "PyPepperServer", "onLeftHandBackTouched" );
-    memoryProxy_->subscribeToEvent( "HandLightLeftTouched", "PyPepperServer", "onLeftHandLeftTouched" );
-    memoryProxy_->subscribeToEvent( "HandLightRightTouched", "PyPepperServer", "onLeftHandRightTouched" );
 
     memoryProxy_->subscribeToEvent( "ALMotion/MoveFailed", "PyPepperServer", "onMovementFailed" );
 
@@ -515,7 +503,7 @@ PyPepperServer::~PyPepperServer()
 /**@{*/
 /*! \typedef onBumperPressed(side)
  *  \memberof PyPepper.
- *  \brief Callback function when one of NAO's bumpers is pressed.
+ *  \brief Callback function when one of Pepper's bumpers is pressed.
  *  \param str side: side = "right" for the right bumper or  "left" for the left bumper or "back" for the back bumper
  *  \return None.
  */
@@ -590,7 +578,7 @@ void PyPepperServer::onBackBumperPressed()
 
 /*! \typedef onHeadTactileTouched(side)
  *  \memberof PyPepper.
- *  \brief Callback function when one of NAO's head tactile sensor is touched.
+ *  \brief Callback function when one of Pepper's head tactile sensor is touched.
  *  \param str side: side = "front" for the front tactile,  "middle" for the middle tactile and "rear" from the back tactile.
  *  \return None.
  */
@@ -663,10 +651,9 @@ void PyPepperServer::onRearTactilTouched()
   }
 }
 
-/*! \typedef onRightHandTouched(side, status)
- *  \memberof PyNAO.
- *  \brief Callback function when one of NAO's right hand tactile sensor is touched.
- *  \param str side. side = "back" for the back tactile,  "right" for the right tactile and "left" from the left tactile.
+/*! \typedef onRightHandTouched(status)
+ *  \memberof PyPepper.
+ *  \brief Callback function when one of Pepper's right hand tactile sensor is touched.
  *  \param bool status. True == touch on, False == touch off.
  *  \return None.
  */
@@ -681,56 +668,17 @@ void PyPepperServer::onRightHandBackTouched()
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
 
-  arg = Py_BuildValue( "(sO)", "back", (stat > 0.5f ? Py_True : Py_False) );
+  arg = Py_BuildValue( "(O)", (stat > 0.5f ? Py_True : Py_False) );
 
-  PyNAOModule::instance()->invokeCallback( "onRightHandTouched", arg );
+  PyPepperModule::instance()->invokeCallback( "onRightHandTouched", arg );
   Py_DECREF( arg );
 
   PyGILState_Release( gstate );
 }
 
-void PyPepperServer::onRightHandLeftTouched()
-{
-  ALCriticalSection section( callbackMutex_ );
-
-  float stat =  memoryProxy_->getData( "HandRightLeftTouched" );
-
-  PyObject * arg = NULL;
-
-  PyGILState_STATE gstate;
-  gstate = PyGILState_Ensure();
-
-  arg = Py_BuildValue( "(sO)", "left", (stat > 0.5f ? Py_True : Py_False) );
-
-  PyNAOModule::instance()->invokeCallback( "onRightHandTouched", arg );
-  Py_DECREF( arg );
-
-  PyGILState_Release( gstate );
-}
-
-void PyPepperServer::onRightHandRightTouched()
-{
-  ALCriticalSection section( callbackMutex_ );
-
-  float stat =  memoryProxy_->getData( "HandRightRightTouched" );
-
-  PyObject * arg = NULL;
-
-  PyGILState_STATE gstate;
-  gstate = PyGILState_Ensure();
-
-  arg = Py_BuildValue( "(sO)", "right", (stat > 0.5f ? Py_True : Py_False) );
-
-  PyNAOModule::instance()->invokeCallback( "onRightHandTouched", arg );
-  Py_DECREF( arg );
-
-  PyGILState_Release( gstate );
-}
-
-/*! \typedef onLeftHandTouched(side, status)
+/*! \typedef onLeftHandTouched(status)
  *  \memberof PyPepper.
- *  \brief Callback function when one of NAO's left hand tactile sensor is touched.
- *  \param str side. side = "back" for the back tactile,  "right" for the right tactile and "left" from the left tactile.
+ *  \brief Callback function when one of Pepper's left hand tactile sensor is touched.
  *  \param str status. status = "on" for touch on or "off" for touch off.
  *  \return None.
  */
@@ -745,47 +693,9 @@ void PyPepperServer::onLeftHandBackTouched()
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
 
-  arg = Py_BuildValue( "(sO)", "back", (stat > 0.5f ? Py_True : Py_False) );
+  arg = Py_BuildValue( "(O)", (stat > 0.5f ? Py_True : Py_False) );
 
-  PyNAOModule::instance()->invokeCallback( "onLeftHandTouched", arg );
-  Py_DECREF( arg );
-
-  PyGILState_Release( gstate );
-}
-
-void PyPepperServer::onLeftHandLeftTouched()
-{
-  ALCriticalSection section( callbackMutex_ );
-
-  float stat =  memoryProxy_->getData( "HandLeftLeftTouched" );
-
-  PyObject * arg = NULL;
-
-  PyGILState_STATE gstate;
-  gstate = PyGILState_Ensure();
-
-  arg = Py_BuildValue( "(sO)", "left", (stat > 0.5f ? Py_True : Py_False) );
-
-  PyNAOModule::instance()->invokeCallback( "onLeftHandTouched", arg );
-  Py_DECREF( arg );
-
-  PyGILState_Release( gstate );
-}
-
-void PyPepperServer::onLeftHandRightTouched()
-{
-  ALCriticalSection section( callbackMutex_ );
-
-  float stat =  memoryProxy_->getData( "HandLeftRightTouched" );
-
-  PyObject * arg = NULL;
-
-  PyGILState_STATE gstate;
-  gstate = PyGILState_Ensure();
-
-  arg = Py_BuildValue( "(sO)", "right", (stat > 0.5f ? Py_True : Py_False) );
-
-  PyNAOModule::instance()->invokeCallback( "onLeftHandTouched", arg );
+  PyPepperModule::instance()->invokeCallback( "onLeftHandTouched", arg );
   Py_DECREF( arg );
 
   PyGILState_Release( gstate );
@@ -882,13 +792,17 @@ void PyPepperServer::onBatteryPowerPlugged()
   PyGILState_Release( gstate );
 }
 
+/*! \typedef onBatteryChargeChange(bat_percent, is_discharging)
+ *  \memberof PyPepper.
+ *  \brief Callback function when the Pepper battery status has changed.
+ *  \param int bat_percent. The remaining battery percentage within [0..100].
+ *  \param bool is_discharging. True == the battery is discharging, False == the batter is charging.
+  *  \return None.
+ */
 void PyPepperServer::onBatteryChargeChanged()
 {
   ALCriticalSection section( callbackMutex_ );
 
-  /**
-   * Check that the bumper is pressed.
-   */
   int batpercent =  memoryProxy_->getData( "BatteryChargeChanged" );
   bool discharging = memoryProxy_->getData( "BatteryDisChargingFlagChanged" );
 
@@ -906,6 +820,12 @@ void PyPepperServer::onBatteryChargeChanged()
   PyGILState_Release( gstate );
 }
 
+/*! \typedef onSystemShutdown()
+ *  \memberof PyPepper.
+ *  \brief Callback function when the Pepper is shutting down.
+ *  \return None.
+ *  \note Currently (v2.4.3) NaoQi does not exit correctly when Pepper is shutting down using the chest button. Init script needs update.
+ */
 void PyPepperServer::notifySystemShutdown()
 {
   INFO_MSG( "PyPepperServer is shutting down..\n" );

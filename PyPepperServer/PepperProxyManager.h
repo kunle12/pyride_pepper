@@ -28,6 +28,7 @@
 #include <alproxies/alautonomouslifeproxy.h>
 #include <alproxies/alanimatedspeechproxy.h>
 #include <alproxies/alrechargeproxy.h>
+#include <alproxies/albehaviormanagerproxy.h>
 
 namespace pyride {
 
@@ -63,15 +64,30 @@ enum { // pepper joints
   R_HAND
 };
 
+struct BezierParam
+{
+  int type;
+  float dtime;
+  float dangle;
+  BezierParam() { type = -1; dtime = dangle = 0.0; };
+};
+
+typedef struct
+{
+  float angle;
+  struct BezierParam bparam1;
+  struct BezierParam bparam2;
+} AngleControlPoint;
+
 class PepperProxyManager
 {
 public:
   static PepperProxyManager * instance();
   ~PepperProxyManager();
-  
+
   void initWithBroker( boost::shared_ptr<ALBroker> broker, boost::shared_ptr<ALMemoryProxy> memoryProxy );
   void sayWithVolume( const std::string & text, float volume = 1.0, bool toAnimate = true, bool toBlock = false );
-  
+
   int loadAudioFile( const std::string & text );
   void unloadAudioFile( const int audioID );
   void unloadAllAudioFiles();
@@ -81,15 +97,15 @@ public:
   void setAudioVolume( const int vol );
   void pauseAudioID( const int audioID );
   void stopAllAudio();
-  
+
   void setChestLED( const NAOLedColour colour );
   void pulsatingChestLED( const NAOLedColour colour1, const NAOLedColour colour2, const float period = 0.5 );
   void continuePulseChestLED();
-  
+
   void getBatteryStatus( int & percentage, bool & isplugged, bool & ischarging, bool & isdischarging );
 
   bool getHeadPos( float & yaw, float & pitch );
-  void moveHeadTo( const float yaw, const float pitch, bool absolute = false );
+  void moveHeadTo( const float yaw, const float pitch, bool relative = false, float frac_speed = 0.05 );
   void updateHeadPos( const float yaw, const float pitch, const float speed = 0.1 );
 
   void getBodyJointsPos( std::vector<float> & positions,
@@ -98,16 +114,16 @@ public:
                        bool useSensor = false );
   void getLegJointsPos( std::vector<float> & positions,
                        bool useSensor = false );
-  
+
   void setArmStiffness( bool isLeft, const float stiff );
   void setHeadStiffness( const float stiff );
   void setBodyStiffness( const float stiff );
   void setLegStiffness( const float stiff );
 
   bool moveArmWithJointPos( bool isLeft, const std::vector<float> & positions,
-                           float frac_speed = 0.5 );
-  
-  void moveArmWithJointTrajectory( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
+                           float frac_speed = 0.5, bool inpost = false );
+
+  bool moveArmWithJointTrajectory( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
                                                    std::vector<float> & times_to_reach, bool inpost = false );
 
   bool moveLegWithJointPos( const std::vector<float> & positions,
@@ -116,7 +132,10 @@ public:
   bool moveBodyWithJointPos( const std::vector<float> & positions,
                             float frac_speed = 0.5 );
 
-  void openHand( bool isLeft, float openRatio = 1.0, bool keepStiff = false );
+  bool moveBodyWithRawTrajectoryData( std::vector<std::string> joint_names, std::vector< std::vector<AngleControlPoint> > & key_frames,
+                                                 std::vector< std::vector<float> > & time_stamps, bool isBezier, bool inpost = false );
+
+  bool setHandPosition( bool isLeft, float openRatio, bool keepStiff );
 
   void stand( bool init = false );
   void crouch();
@@ -124,12 +143,19 @@ public:
   void gotoStation();
   void leaveStation();
 
-  bool moveBodyTo( const RobotPose & pose, float duration = 5.0, bool cancelPreviousMove = true );
+  bool moveBodyTo( const RobotPose & pose, float duration = 5.0, bool cancelPreviousMove = true, bool inpose = false );
 
   bool navigateBodyTo( const RobotPose & pose, bool cancelPreviousMove = true );
 
   void updateBodyPose( const RobotPose & pose );
-  
+
+  bool startBehaviour( const std::string & behaviour );
+  bool runBehaviour( const std::string & behaviour, bool inpost = false );
+  void stopBehaviour( const std::string & behavour );
+  void stopAllBehaviours();
+
+  std::vector<std::string> getBehaviourList( bool installed = false );
+
   void timeoutCheck();
 
   void setAutonomousAbility( const std::string & ability, bool enable );
@@ -151,14 +177,15 @@ private:
   boost::shared_ptr<ALMemoryProxy> memoryProxy_;
   boost::shared_ptr<ALNavigationProxy> navigationProxy_;
   boost::shared_ptr<ALAutonomousLifeProxy> autoLifeProxy_;
-  
+  boost::shared_ptr<ALBehaviorManagerProxy> behaviourManagerProxy_;
+
   //motion related data
   ALValue jointLimits_;
 
   struct timeval cmdTimeStamp_;
-  
+
   bool moveInitialised_;
-  
+
   bool isChestLEDPulsating_;
   ALValue ledColourHex_;
   ALValue ledChangePeriod_;
@@ -168,7 +195,7 @@ private:
   pthread_mutexattr_t t_mta;
 
   PepperProxyManager();
-  
+
   float clamp( float val, int jointInd );
   int colour2Hex( const NAOLedColour colour );
 
