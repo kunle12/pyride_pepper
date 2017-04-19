@@ -45,6 +45,7 @@
 #define CCXX_RTP_SOURCES_H_
 
 #include <string>
+#include <cstddef>
 #include <ccrtp/rtcppkt.h>
 
 #ifdef	CCXX_NAMESPACES
