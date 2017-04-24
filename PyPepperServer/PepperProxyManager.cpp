@@ -7,6 +7,7 @@
  *
  */
 #include <sys/time.h>
+#include <algorithm>
 #include <PyRideCommon.h>
 #include "PepperProxyManager.h"
 
@@ -216,6 +217,27 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     INFO_MSG( "Pepper Autonomous life is successfully initialised.\n" );
   }
 
+  try {
+    basicAwarenessProxy_ = boost::shared_ptr<ALBasicAwarenessProxy>(new ALBasicAwarenessProxy( broker ));
+  }
+  catch (const ALError& e) {
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALBasicAwarenessProxy.\n");
+    basicAwarenessProxy_.reset();
+  }
+  if (basicAwarenessProxy_) {
+    INFO_MSG( "Pepper Basic Awareness is successfully initialised.\n" );
+  }
+  try {
+    autoblinkingProxy_ = broker->getProxy( "AutonomousBlinking" );
+    backgroundMovementProxy_ = broker->getProxy( "BackgroundMovement" );
+    listenMovementProxy_ = broker->getProxy( "ListeningMovement" );
+  }
+  catch (const ALError& e) {
+    ERROR_MSG( "PyPepperServer: Unable to create proxy to the standard automonous abilities.\n");
+    autoblinkingProxy_.reset();
+    backgroundMovementProxy_.reset();
+    listenMovementProxy_.reset();
+  }
 }
 
 void PepperProxyManager::sayWithVolume( const std::string & text, float volume, bool toAnimate, bool toBlock )
@@ -954,8 +976,29 @@ void PepperProxyManager::getBatteryStatus( int & percentage, bool & isplugged, b
 
 void PepperProxyManager::setAutonomousAbility( const std::string & ability, bool enable )
 {
+  /*
   if (autoLifeProxy_) {
-    //autoLifeProxy_->setAutonomousAbilityEnabled( ability, enable ); // TODO: method is not available in SDK 2.4. yet
+    autoLifeProxy_->setAutonomousAbilityEnabled( ability, enable ); // TODO: method is not available in SDK 2.4. yet
+  }
+  */
+  std::string cmd = ability;
+  std::transform( cmd.begin(), cmd.end(), cmd.begin(), ::tolower );
+  if (ability.compare( "basicawareness") == 0 && basicAwarenessProxy_) {
+    if (enable) {
+      basicAwarenessProxy_->startAwareness();
+    }
+    else {
+      basicAwarenessProxy_->stopAwareness();
+    }
+  }
+  else if (ability.compare( "autonomousblinking") == 0 && autoblinkingProxy_) {
+    autoblinkingProxy_->call<void>( "setEnabled", enable );
+  }
+  else if (ability.compare( "backgroundmovement") == 0 && backgroundMovementProxy_) {
+    backgroundMovementProxy_->call<void>( "setEnabled", enable );
+  }
+  else if (ability.compare( "listeningmovement") == 0 && listenMovementProxy_) {
+    listenMovementProxy_->call<void>( "setEnabled", enable );
   }
 }
 
@@ -978,6 +1021,9 @@ void PepperProxyManager::fini()
   if (speechProxy_) {
     speechProxy_.reset();
   }
+  if (animateSpeechProxy_) {
+    animateSpeechProxy_.reset();
+  }
   if (motionProxy_) {
     motionProxy_.reset();
   }
@@ -992,6 +1038,23 @@ void PepperProxyManager::fini()
   }
   if (behaviourManagerProxy_) {
     behaviourManagerProxy_.reset();
+  }
+  if (postureProxy_) {
+    postureProxy_.reset();
+  }
+  if (navigationProxy_) {
+    navigationProxy_.reset();
+  }
+  if (autoLifeProxy_) {
+    autoLifeProxy_.reset();
+  }
+  if (basicAwarenessProxy_) {
+    basicAwarenessProxy_.reset();
+  }
+  if (autoblinkingProxy_) {
+    autoblinkingProxy_.reset();
+    backgroundMovementProxy_.reset();
+    listenMovementProxy_.reset();
   }
 }
 

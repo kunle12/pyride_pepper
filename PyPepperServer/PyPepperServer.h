@@ -33,7 +33,7 @@ using namespace AL;
 
 class NaoCam : public VideoDevice {
 public:
-  NaoCam( boost::shared_ptr<ALBroker> pBroker, const std::string & pName );
+  NaoCam( boost::shared_ptr<ALBroker> pBroker, const std::string name, const int cameraID );
   ~NaoCam();
 
   bool initDevice();
@@ -55,6 +55,7 @@ private:
   std::string gvmName_;
 
   bool takeSnapShot_;
+  int cameraID_;
 
   bool getDefaultVideoSettings();
 

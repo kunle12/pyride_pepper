@@ -171,12 +171,21 @@ static PyObject * PyModule_sendTeamMessage( PyObject *self, PyObject * args )
   Py_RETURN_NONE;
 }
 
+/*! \fn say(text, volume, animated, is_blocking)
+ *  \memberof PyPepper
+ *  \brief Let Pepper to speak an input text.
+ *  \param string text. Text that be spoken by Pepper
+ *  \param float volume. Speaker volume must be within [0..100] Optional, default to use current volume.
+ *  \param bool animated. True == speak with arm movements; False == plain speaking. Optional, default is False.
+ *  \param bool is_blocking. True == blocking function call; False == Non-blocking call. Optional, default is False.
+ *  \return None.
+ */
 static PyObject * PyModule_PepperSayWithVolume( PyObject * self, PyObject * args )
 {
   float volume = 0.0;
   char * dataStr = NULL;
   bool toBlock = false;
-  bool toAnimate = true;
+  bool toAnimate = false;
 
   PyObject * toAnimateObj = NULL;
   PyObject * toBlockObj = NULL;
@@ -200,7 +209,7 @@ static PyObject * PyModule_PepperSayWithVolume( PyObject * self, PyObject * args
       toBlock = PyObject_IsTrue( toBlockObj );
     }
     else {
-      PyErr_Format( PyExc_ValueError, "PyPepper.say: fouth parameter must be a boolean!" );
+      PyErr_Format( PyExc_ValueError, "PyPepper.say: fourth parameter must be a boolean!" );
       return NULL;
     }
   }

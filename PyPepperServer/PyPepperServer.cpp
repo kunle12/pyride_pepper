@@ -32,8 +32,8 @@ PYRIDE_LOGGING_DECLARE( "/home/nao/log/tin.log" );
 namespace pyride {
 
 static const int kMaxAudioSamples = 16384;
-static const float kHFOV = 60.97;
-static const float kVFOV = 34.80;
+static const float kHFOV = 57.2;
+static const float kVFOV = 44.3;
 
 void * videograb_thread( void * controller )
 {
@@ -41,18 +41,19 @@ void * videograb_thread( void * controller )
   return NULL;
 }
 
-NaoCam::NaoCam( boost::shared_ptr<ALBroker> pBroker, const std::string & pName ) :
+NaoCam::NaoCam( boost::shared_ptr<ALBroker> pBroker, const std::string name, const int cameraID ) :
   broker_( pBroker ),
   procThread_( (pthread_t)NULL ),
   gvmName_( "" ),
-  takeSnapShot_( false )
+  takeSnapShot_( false ),
+  cameraID_( cameraID )
 {
   pthread_attr_init( &threadAttr_ );
   pthread_attr_setinheritsched( &threadAttr_, PTHREAD_EXPLICIT_SCHED );
   pthread_attr_setschedpolicy( &threadAttr_, SCHED_OTHER );
-  devInfo_.deviceID = "PEPPERCAM01";
-  devInfo_.deviceName = devInfo_.deviceLabel = "Pepper Head Cam";
-  devInfo_.index = 0;
+  devInfo_.deviceID = "PEPPERCAM" + cameraID;
+  devInfo_.deviceName = devInfo_.deviceLabel = name;
+  devInfo_.index = cameraID;
   devInfo_.shouldBeActive = true;
 }
 
@@ -79,7 +80,7 @@ bool NaoCam::initDevice()
   std::string GVMName = "Controller_GVM";
 
   try {
-    gvmName_ = videoProxy_->subscribeCamera( GVMName, AL::kTopCamera, AL::kVGA, kYUV422ColorSpace,
+    gvmName_ = videoProxy_->subscribeCamera( GVMName, cameraID_, AL::kVGA, kYUV422ColorSpace,
                                       /*kRGBColorSpace,*/ 10 );
   }
   catch (const ALError& e) {
@@ -355,9 +356,13 @@ void PyPepperServer::init()
 {
   PYRIDE_LOGGING_INIT;
 
-  NaoCam * topCam = new NaoCam( getParentBroker(), getName() );
+  NaoCam * topCam = new NaoCam( getParentBroker(), "Pepper Top Head Cam", AL::kTopCamera );
   if (topCam->initDevice()) {
     naoCams_.push_back( topCam );
+  }
+  NaoCam * bottomCam = new NaoCam( getParentBroker(), "Pepper bottom Head Cam", AL::kBottomCamera );
+  if (bottomCam->initDevice()) {
+    naoCams_.push_back( bottomCam );
   }
 
   if (this->initDevice()) {
