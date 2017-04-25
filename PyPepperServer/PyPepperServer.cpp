@@ -93,8 +93,8 @@ bool NaoCam::initDevice()
     return isInitialised_;
   }
 
-  INFO_MSG( "camera resolution = %d and is %s\n", videoProxy_->getResolution( gvmName_ ),
-      (videoProxy_->isCameraOpen(AL::kTopCamera) ? "open" : "closed") );
+  INFO_MSG( "camera %d resolution = %d and is %s\n", cameraID_, videoProxy_->getResolution( gvmName_ ),
+      (videoProxy_->isCameraOpen(cameraID_) ? "open" : "closed") );
   packetStamp_ = 0;
   clientNo_ = 0;
   isStreaming_ = false;
@@ -455,7 +455,8 @@ bool PyPepperServer::executeRemoteCommand( PyRideExtendedCommand command,
       float volume = *((float *)optionalData);
       //DEBUG_MSG( "received volume %f\n", volume );
       char * text = (char *)optionalData + sizeof( float );
-      PepperProxyManager::instance()->sayWithVolume( std::string( text, optionalDataLength - sizeof( float ) ), volume );
+      // TODO: volume is not currently used.
+      PepperProxyManager::instance()->say( std::string( text, optionalDataLength - sizeof( float ) ) );
     }
       break;
     case HEAD_MOVE_TO:
@@ -493,7 +494,7 @@ bool PyPepperServer::executeRemoteCommand( PyRideExtendedCommand command,
 
 void PyPepperServer::cancelCurrentOperation()
 {
-  PepperProxyManager::instance()->sayWithVolume( "Emergency Stop!" );
+  PepperProxyManager::instance()->say( "Emergency Stop!" );
 }
 
 PyPepperServer::~PyPepperServer()

@@ -228,9 +228,9 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     INFO_MSG( "Pepper Basic Awareness is successfully initialised.\n" );
   }
   try {
-    autoblinkingProxy_ = broker->getProxy( "AutonomousBlinking" );
-    backgroundMovementProxy_ = broker->getProxy( "BackgroundMovement" );
-    listenMovementProxy_ = broker->getProxy( "ListeningMovement" );
+    autoblinkingProxy_ = broker->getProxy( "ALAutonomousBlinking" );
+    backgroundMovementProxy_ = broker->getProxy( "ALBackgroundMovement" );
+    listenMovementProxy_ = broker->getProxy( "ALListeningMovement" );
   }
   catch (const ALError& e) {
     ERROR_MSG( "PyPepperServer: Unable to create proxy to the standard automonous abilities.\n");
@@ -238,9 +238,10 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     backgroundMovementProxy_.reset();
     listenMovementProxy_.reset();
   }
+  INFO_MSG( "Pepper standard automonous abilities are successfully initialised.\n" )
 }
 
-void PepperProxyManager::sayWithVolume( const std::string & text, float volume, bool toAnimate, bool toBlock )
+void PepperProxyManager::say( const std::string & text, bool toAnimate, bool toBlock )
 {
   if (toAnimate && animateSpeechProxy_) {
     if (toBlock) {
@@ -251,9 +252,6 @@ void PepperProxyManager::sayWithVolume( const std::string & text, float volume, 
     }
   }
   else if (speechProxy_) {
-    if (volume <= 1.0 && volume > 0.0) {
-      speechProxy_->setVolume( volume );
-    }
     if (toBlock) {
       speechProxy_->say( text );
     }

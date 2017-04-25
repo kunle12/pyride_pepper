@@ -175,14 +175,12 @@ static PyObject * PyModule_sendTeamMessage( PyObject *self, PyObject * args )
  *  \memberof PyPepper
  *  \brief Let Pepper to speak an input text.
  *  \param string text. Text that be spoken by Pepper
- *  \param float volume. Speaker volume must be within [0..100] Optional, default to use current volume.
  *  \param bool animated. True == speak with arm movements; False == plain speaking. Optional, default is False.
  *  \param bool is_blocking. True == blocking function call; False == Non-blocking call. Optional, default is False.
  *  \return None.
  */
 static PyObject * PyModule_PepperSayWithVolume( PyObject * self, PyObject * args )
 {
-  float volume = 0.0;
   char * dataStr = NULL;
   bool toBlock = false;
   bool toAnimate = false;
@@ -190,7 +188,7 @@ static PyObject * PyModule_PepperSayWithVolume( PyObject * self, PyObject * args
   PyObject * toAnimateObj = NULL;
   PyObject * toBlockObj = NULL;
 
-  if (!PyArg_ParseTuple( args, "s|fOO", &dataStr, &volume, &toAnimateObj, &toBlockObj )) {
+  if (!PyArg_ParseTuple( args, "s|OO", &dataStr, &toAnimateObj, &toBlockObj )) {
     // PyArg_ParseTuple will set the error status.
     return NULL;
   }
@@ -200,7 +198,7 @@ static PyObject * PyModule_PepperSayWithVolume( PyObject * self, PyObject * args
       toAnimate = PyObject_IsTrue( toAnimateObj );
     }
     else {
-      PyErr_Format( PyExc_ValueError, "PyPepper.say: third parameter must be a boolean!" );
+      PyErr_Format( PyExc_ValueError, "PyPepper.say: second parameter must be a boolean!" );
       return NULL;
     }
   }
@@ -209,17 +207,13 @@ static PyObject * PyModule_PepperSayWithVolume( PyObject * self, PyObject * args
       toBlock = PyObject_IsTrue( toBlockObj );
     }
     else {
-      PyErr_Format( PyExc_ValueError, "PyPepper.say: fourth parameter must be a boolean!" );
+      PyErr_Format( PyExc_ValueError, "PyPepper.say: third parameter must be a boolean!" );
       return NULL;
     }
   }
 
-  if (volume < 0.0 || volume > 1.0) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.say: invalid voice volume!" );
-    return NULL;
-  }
   if (dataStr) {
-    PepperProxyManager::instance()->sayWithVolume( string( dataStr ), volume,
+    PepperProxyManager::instance()->say( string( dataStr ),
                                                toAnimate, toBlock );
   }
   Py_RETURN_NONE;
@@ -1714,7 +1708,7 @@ static PyMethodDef PyModule_methods[] = {
     "Get Pepper to crouch. " },
   { "navigateBodyTo", (PyCFunction)PyModule_PepperNavigateBodyTo, METH_VARARGS,
     "Navigate Pepper to a specific position w.r.t the current robot pose. " },
-  { "moveBodyTo", (PyCFunction)PyModule_PepperNavigateBodyTo, METH_VARARGS,
+  { "moveBodyTo", (PyCFunction)PyModule_PepperMoveBodyTo, METH_VARARGS,
     "Move Pepper to a specific position w.r.t the current robot pose. " },
   { "setArmStiffness", (PyCFunction)PyModule_PepperSetArmStiffness, METH_VARARGS,
     "Set the stiffness of the one of Pepper's arms. " },

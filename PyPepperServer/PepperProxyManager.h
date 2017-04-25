@@ -87,7 +87,7 @@ public:
   ~PepperProxyManager();
 
   void initWithBroker( boost::shared_ptr<ALBroker> broker, boost::shared_ptr<ALMemoryProxy> memoryProxy );
-  void sayWithVolume( const std::string & text, float volume = 1.0, bool toAnimate = true, bool toBlock = false );
+  void say( const std::string & text, bool toAnimate = true, bool toBlock = false );
 
   int loadAudioFile( const std::string & text );
   void unloadAudioFile( const int audioID );
