@@ -1576,6 +1576,133 @@ static PyObject * PyModule_PepperDirectToWeb( PyObject * self, PyObject * args )
     Py_RETURN_FALSE;
 }
 
+/*! \fn reloadWebpage()
+ *  \memberof PyPepper
+ *  \brief Reload the current webpage on Pepper's tablet.
+ *  \return None.
+ */
+/**@}*/
+static PyObject * PyModule_PepperReloadWebpage( PyObject * self )
+{
+  PepperProxyManager::instance()->reloadWebpage();
+  Py_RETURN_NONE;
+}
+
+/*! \fn turnTabletOn(on)
+ *  \memberof PyPepper
+ *  \brief Ture Pepper tablet on or off
+ *  \param bool on. True == turn on the tablet; False == turn off the tablet.
+ *  \return None
+ */
+static PyObject * PyModule_PepperTurnTabletOn( PyObject * self, PyObject * args )
+{
+  PyObject * isYesObj = NULL;
+  bool isYes = false;
+
+  if (!PyArg_ParseTuple( args, "O", &isYesObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+  if (PyBool_Check( isYesObj )) {
+    isYes = PyObject_IsTrue( isYesObj );
+  }
+  else {
+    PyErr_Format( PyExc_ValueError, "PyPepper.turnTabletOn: the input parameter must be a boolean!" );
+    return NULL;
+  }
+  PepperProxyManager::instance()->turnTabletOn( isYes );
+  Py_RETURN_NONE;
+}
+
+/*! \fn resetTablet()
+ *  \memberof PyPepper
+ *  \brief Reset Pepper's tablet.
+ *  \return None.
+ */
+/**@}*/
+static PyObject * PyModule_PepperResetTablet( PyObject * self )
+{
+  PepperProxyManager::instance()->resetTablet();
+  Py_RETURN_NONE;
+}
+
+/*! \fn getTabletWiFiInfo()
+ *  \memberof PyPepper
+ *  \brief Retrieve Pepper's tablet status information and its MAC address.
+ *  \return tuple. (status, mac address)
+ */
+/**@}*/
+static PyObject * PyModule_PepperGetTabletWiFiInfo( PyObject * self )
+{
+  std::string status = PepperProxyManager::instance()->getTabletWiFiStatus();
+  std::string macaddr = PepperProxyManager::instance()->getTabletWiFiMacAddress();
+
+  return Py_BuildValue( "(ss)", status.c_str(), macaddr.c_str() );
+}
+
+/*! \fn connectTabletWiFiTo(ssid, key)
+ *  \memberof PyPepper
+ *  \brief Connect Pepper's tablet to a specific WPA WiFi hotspot.
+ *  \param str ssid. SSID of the WiFi hotspot.
+ *  \param str key. WAP security key of the hotspot.
+ *  \return bool. True == successfully connected; False == unable to connect.
+ *  \note Only WPA secure protocol is supported.
+ */
+static PyObject * PyModule_PepperConnectTabletWiFiTo( PyObject * self, PyObject * args )
+{
+  char * ssid = NULL;
+  char * wpakey = NULL;
+
+  if (!PyArg_ParseTuple( args, "ss", &ssid, &wpakey ) || strlen(ssid) == 0 || strlen(wpakey) == 0) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+  if (PepperProxyManager::instance()->connectTabletWiFiTo( ssid, wpakey ))
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
+}
+
+/*! \fn disconnectTabletWiFi()
+ *  \memberof PyPepper
+ *  \brief Disconnect Pepper's tablet WiFi connection with a hotspot
+ *  \return bool. True == successful disconnection; False = failed.
+ */
+/**@}*/
+static PyObject * PyModule_PepperDisconnectTabletWiFi( PyObject * self )
+{
+  if (PepperProxyManager::instance()->disconnectTabletWiFi())
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
+}
+
+/*! \fn turnTabletWiFiOn(on)
+ *  \memberof PyPepper
+ *  \brief Ture Pepper tablet WiFi on or off
+ *  \param bool on. True == turn on the WiFi; False == turn off the WiFi.
+ *  \return None
+ */
+static PyObject * PyModule_PepperTurnTabletWiFiOn( PyObject * self, PyObject * args )
+{
+  PyObject * isYesObj = NULL;
+  bool isYes = false;
+
+  if (!PyArg_ParseTuple( args, "O", &isYesObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+  if (PyBool_Check( isYesObj )) {
+    isYes = PyObject_IsTrue( isYesObj );
+  }
+  else {
+    PyErr_Format( PyExc_ValueError, "PyPepper.turnTabletWiFiOn: the input parameter must be a boolean!" );
+    return NULL;
+  }
+  PepperProxyManager::instance()->turnTabletWiFiOn( isYes );
+  Py_RETURN_NONE;
+}
+
 /** @name Miscellaneous Functions
  *
  */
@@ -1788,6 +1915,20 @@ static PyMethodDef PyModule_methods[] = {
     "Get a list of loaded (or installed) behaviours on Pepper." },
   { "directToWeb", (PyCFunction)PyModule_PepperDirectToWeb, METH_VARARGS,
     "Direct Pepper tablet browser to a URI." },
+  { "reloadWebpage", (PyCFunction)PyModule_PepperReloadWebpage, METH_NOARGS,
+    "Reload the current webpage on the Pepper tablet." },
+  { "turnTabletOn", (PyCFunction)PyModule_PepperTurnTabletOn, METH_VARARGS,
+    "Turn Pepper tablet on or off." },
+  { "resetTablet", (PyCFunction)PyModule_PepperResetTablet, METH_NOARGS,
+    "Reset Pepper tablet." },
+  { "getTabletWiFiInfo", (PyCFunction)PyModule_PepperGetTabletWiFiInfo, METH_NOARGS,
+    "Retrieve Pepper tablet's wifi status and MAC address." },
+  { "connectTabletWiFiTo", (PyCFunction)PyModule_PepperConnectTabletWiFiTo, METH_VARARGS,
+    "Connect Pepper tablet WiFi to a specific WPA WiFi hotspot." },
+  { "disconnectTabletWiFi", (PyCFunction)PyModule_PepperDisconnectTabletWiFi, METH_NOARGS,
+    "Disconnect Pepper tablet WiFi from the current hotspot." },
+  { "turnTabletWiFiOn", (PyCFunction)PyModule_PepperTurnTabletWiFiOn, METH_VARARGS,
+    "Turn Pepper tablet WiFi on or off." },
   { "setChestLED", (PyCFunction)PyModule_PepperSetChestLED, METH_VARARGS,
     "Set the colour of the chest LEDs on Pepper." },
   { "pulseChestLED", (PyCFunction)PyModule_PepperPulseChestLED, METH_VARARGS,

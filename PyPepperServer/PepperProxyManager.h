@@ -156,6 +156,15 @@ public:
   void stopAllBehaviours();
 
   bool directToWeb( const std::string & url );
+  void reloadWebpage( bool bypassCache = true );
+  void turnTabletOn( bool turnOn );
+  void resetTablet();
+
+  std::string getTabletWiFiStatus();
+  std::string getTabletWiFiMacAddress();
+  bool connectTabletWiFiTo( const std::string ssid, const std::string wapkey );
+  bool disconnectTabletWiFi();
+  void turnTabletWiFiOn( bool turnOn );
 
   std::vector<std::string> getBehaviourList( bool installed = false );
 

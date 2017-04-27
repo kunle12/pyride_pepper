@@ -910,6 +910,84 @@ bool PepperProxyManager::directToWeb( const std::string & url )
   return tabletProxy_->call<bool>( "showWebview", url );
 }
 
+void PepperProxyManager::reloadWebpage( bool bypassCache )
+{
+  if (tabletProxy_) {
+    tabletProxy_->call<void>( "reloadPage", bypassCache );
+  }
+}
+
+void PepperProxyManager::turnTabletOn( bool turnOn )
+{
+  if (tabletProxy_) {
+    if (turnOn) {
+      tabletProxy_->call<void>( "wakeUp" );
+      tabletProxy_->call<void>( "turnScreenOn", true );
+    }
+    else {
+      tabletProxy_->call<void>( "turnScreenOn", false );
+      tabletProxy_->call<void>( "goToSleep" );
+    }
+  }
+}
+
+void PepperProxyManager::resetTablet()
+{
+  if (tabletProxy_) {
+    tabletProxy_->call<void>( "resetTablet" );
+  }
+}
+
+std::string PepperProxyManager::getTabletWiFiStatus()
+{
+  if (tabletProxy_) {
+    return tabletProxy_->call<std::string>( "getWifiStatus" );
+  }
+  return "";
+}
+
+std::string PepperProxyManager::getTabletWiFiMacAddress()
+{
+  if (tabletProxy_) {
+    return tabletProxy_->call<std::string>( "getWifiMacAddress" );
+  }
+  return "";
+}
+
+bool PepperProxyManager::connectTabletWiFiTo( const std::string ssid, const std::string wapkey )
+{
+  if (!tabletProxy_)
+    return false;
+
+  if (tabletProxy_->call<bool>( "configureWifi", "wpa", ssid, wapkey )) {
+    return tabletProxy_->call<bool>( "connectWifi", ssid );
+  }
+  else {
+    ERROR_MSG( "Invalid WiFi hotspot configuration!\n" );
+  }
+  return false;
+}
+
+bool PepperProxyManager::disconnectTabletWiFi()
+{
+  if (!tabletProxy_)
+    return false;
+
+  return tabletProxy_->call<bool>( "disconnectWifi" );
+}
+
+void PepperProxyManager::turnTabletWiFiOn( bool turnOn )
+{
+  if (tabletProxy_) {
+    if (turnOn) {
+      tabletProxy_->call<void>( "enableWifi" );
+    }
+    else {
+      tabletProxy_->call<void>( "disableWifi" );
+    }
+  }
+}
+
 void PepperProxyManager::setChestLED( const NAOLedColour colour )
 {
   if (ledProxy_) {
