@@ -155,6 +155,8 @@ public:
   void stopBehaviour( const std::string & behavour );
   void stopAllBehaviours();
 
+  bool directToWeb( const std::string & url );
+
   std::vector<std::string> getBehaviourList( bool installed = false );
 
   void timeoutCheck();
@@ -183,6 +185,7 @@ private:
   boost::shared_ptr<ALProxy> autoblinkingProxy_;
   boost::shared_ptr<ALProxy> backgroundMovementProxy_;
   boost::shared_ptr<ALProxy> listenMovementProxy_;
+  boost::shared_ptr<ALProxy> tabletProxy_;
 
   //motion related data
   ALValue jointLimits_;

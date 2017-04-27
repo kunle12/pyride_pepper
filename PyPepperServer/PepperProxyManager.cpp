@@ -233,12 +233,23 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     listenMovementProxy_ = broker->getProxy( "ALListeningMovement" );
   }
   catch (const ALError& e) {
-    ERROR_MSG( "PyPepperServer: Unable to create proxy to the standard automonous abilities.\n");
+    ERROR_MSG( "PyPepperServer: Unable to create proxy to the standard automonous abilities.\n" );
     autoblinkingProxy_.reset();
     backgroundMovementProxy_.reset();
     listenMovementProxy_.reset();
   }
-  INFO_MSG( "Pepper standard automonous abilities are successfully initialised.\n" )
+  if (autoblinkingProxy_) {
+    INFO_MSG( "Pepper standard automonous abilities are successfully initialised.\n" );
+  }
+  try {
+    tabletProxy_ = broker->getProxy( "ALTabletService" );
+  }
+  catch (const ALError& e) {
+    ERROR_MSG( "PyPepperServer: Unable to create proxy to tablet service.\n" );
+  }
+  if (tabletProxy_) {
+    INFO_MSG( "Pepper tablet service is successfully initialised.\n" );
+  }
 }
 
 void PepperProxyManager::say( const std::string & text, bool toAnimate, bool toBlock )
@@ -891,6 +902,14 @@ std::vector<std::string> PepperProxyManager::getBehaviourList( bool installed )
   return list;
 }
 
+bool PepperProxyManager::directToWeb( const std::string & url )
+{
+  if (!tabletProxy_)
+    return false;
+
+  return tabletProxy_->call<bool>( "showWebview", url );
+}
+
 void PepperProxyManager::setChestLED( const NAOLedColour colour )
 {
   if (ledProxy_) {
@@ -1053,6 +1072,9 @@ void PepperProxyManager::fini()
     autoblinkingProxy_.reset();
     backgroundMovementProxy_.reset();
     listenMovementProxy_.reset();
+  }
+  if (tabletProxy_) {
+    tabletProxy_.reset();
   }
 }
 

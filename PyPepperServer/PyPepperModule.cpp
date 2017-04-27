@@ -1556,6 +1556,26 @@ static PyObject * PyModule_PepperGetBehaviourList( PyObject * self, PyObject * a
   return retObj;
 }
 
+/*! \fn directToWeb(uri)
+ *  \memberof PyPepper
+ *  \brief direct Pepper tablet to a specified web site.
+ *  \param str uri. URI for the web site.
+ *  \return bool. True == successfully load the url; False == url invalid or unreachable.
+ */
+static PyObject * PyModule_PepperDirectToWeb( PyObject * self, PyObject * args )
+{
+  char * uriStr = NULL;
+
+  if (!PyArg_ParseTuple( args, "s", &uriStr ) || strlen(uriStr) == 0) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+  if (PepperProxyManager::instance()->directToWeb( uriStr ))
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
+}
+
 /** @name Miscellaneous Functions
  *
  */
@@ -1766,6 +1786,8 @@ static PyMethodDef PyModule_methods[] = {
     "Stop all playing behaviours on Pepper." },
   { "getBehaviourList", (PyCFunction)PyModule_PepperGetBehaviourList, METH_VARARGS,
     "Get a list of loaded (or installed) behaviours on Pepper." },
+  { "directToWeb", (PyCFunction)PyModule_PepperDirectToWeb, METH_VARARGS,
+    "Direct Pepper tablet browser to a URI." },
   { "setChestLED", (PyCFunction)PyModule_PepperSetChestLED, METH_VARARGS,
     "Set the colour of the chest LEDs on Pepper." },
   { "pulseChestLED", (PyCFunction)PyModule_PepperPulseChestLED, METH_VARARGS,
