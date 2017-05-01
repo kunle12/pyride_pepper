@@ -5,14 +5,14 @@
 Provide an overview of your package.
 -->
 PyRIDE, Python based Robot Interactive Development Environment, is a
-software development framework for rapid robot behaviour programming in Python scripting language. It is also an integration framework for bring disparate robot functional modules together. This documentation gives a detailed description of application programming interface of PyRIDE on Pepper robot.
+software development framework for rapid robot behaviour programming in Python scripting language. It is also an integration framework for bring disparate robot functional modules together. This documentation gives a detailed description of application programming interface of PyRIDE on Pepper robots.
 
 \section compile Compile and Install from source for Pepper
 \subsection require Prerequisites
-You need NaoQi SDK 2.4.2 with the corresponding cross compiler toolchain installed on your system. You will also need qibuild 3.x build system installed.
+You need NaoQi SDK 2.5.5 with the corresponding cross compiler toolchain installed on your system. You will also need qibuild 3.x build system installed.
 
 \subsection compile To compile PyRIDE for Pepper
--# Get source code: <b>git clone https://github.com/uts-magic-lab/pyride_nao.git</b> under a working directory.
+-# Get source code: <b>git clone https://github.com/kunle12/pyride_pepper.git</b> under a working directory.
 -# Compile and install the following modules under <b>libsrc</b> subdirectory using <b>qibuild</b> and <b>qitoolchain</b> commands (see qibuild documentation for the details).
 
   - commoncpp2-1.8.1
@@ -20,7 +20,7 @@ You need NaoQi SDK 2.4.2 with the corresponding cross compiler toolchain install
   - celt-0.11.1
   - PyRideCore
 
--# Compile <b>PyNaoServer</b> using <b>qibuild</b>.
+-# Compile <b>PyPepperServer</b> using <b>qibuild</b>.
 
 \subsection install To install PyRIDE on Pepper
 Under a Pepper terminal (using ssh), copy the following share library objects extracted from the packages (or copy directly from the <b>build-cross-atom-release/sdk/lib</b> sub-directory under the source directories) built in the previous section to <b>/home/nao/naoqi/lib</b> directory on the robot.

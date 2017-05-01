@@ -5,11 +5,11 @@ This repository contains PyRIDE for Aldebaran/Softbank Pepper robots. For more d
 
 [![First demo video for PyRIDE on Pepper robot](http://img.youtube.com/vi/FP9fUvsooLs/0.jpg)](http://www.youtube.com/watch?v=FP9fUvsooLs)
 
-**WARNING:** This version of PyRIDE is compatible with NaoQi SDK version 2.4.3 and below. It may require code updates in order to be compatible with later version of NaoQi SDK.
+**WARNING:** This version of PyRIDE is compatible with NaoQi SDK version 2.5.5 and below. It may require code updates in order to be compatible with later version of NaoQi SDK.
 
 ## Compile source code
 ### Prerequisites
-You need NaoQi SDK 2.4.3 with the corresponding cross compiler toolchain installed on your system. You will also need qibuild 3.11.x build system installed.
+You need NaoQi SDK 2.5.5 with the corresponding cross compiler toolchain installed on your system. You will also need qibuild 3.11.x build system installed.
 
 ### Source code structure
 PyRIDE for Pepper is dependent on several open source third-party libraries. Since there is no prebuild library binaries, this repository contains modified source code of these libraries so that you can build and install them manually on your Pepper robots. In addition, PyRIDE on Pepper has been partitioned into two components: PyRideCore and PyPepperServer. PyRideCore contains core functionalities that are available to all supported robot platforms. PyPepperServer contains code that is specific to the Pepper robot platform. Third-party libraries and PyRideCore are under ```libsrc``` directory. PyPepperServer is located under ```PyPepperServer``` directory. ```scripts``` contains default example Python scripts that run on PyRIDE for Pepper.
@@ -72,4 +72,4 @@ Create an ```autoload.ini``` file under ```/home/nao/naoqi/preference``` with th
 **NOTE:** PyRIDE configuration file ```pyrideconfig.xml``` will be automatically generated under ```/home/nao/naoqi/preference``` when PyRIDE for Pepper is successfully run and *properly* shutdown. As older NaoQi systems do not properly shutdown PyRIDE module when shutting down the robot by pressing the centre button, you may have to call ```PyPepper.saveConfiguration``` command to save important configuration, e.g. remote user access account, periodically.
 
 ### Using PyRIDE for Pepper
-Check PyRIDE for ROS/PR2 [README](https://github.com/uts-magic-lab/pyride_pr2/blob/master/README.md) for the details on how to access embedded Python engine, remote client access. Check [PyRIDE API documentation for Pepper](http://uts-magic-lab.github.io/pyride_nao) for the details on the available Python methods for Pepper.
+Check PyRIDE for ROS/PR2 [README](https://github.com/uts-magic-lab/pyride_pr2/blob/master/README.md) for the details on how to access embedded Python engine, remote client access. Check [PyRIDE API documentation for Pepper](http://kunle12.github.io/pyride_pepper) for the details on the available Python methods for Pepper.
