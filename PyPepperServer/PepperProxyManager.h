@@ -30,6 +30,7 @@
 #include <alproxies/alanimatedspeechproxy.h>
 #include <alproxies/alrechargeproxy.h>
 #include <alproxies/albehaviormanagerproxy.h>
+#include <alproxies/alsystemproxy.h>
 
 namespace pyride {
 
@@ -157,6 +158,7 @@ public:
 
   bool directToWeb( const std::string & url );
   void reloadWebpage( bool bypassCache = true );
+  void clearWebpage( bool hide = true );
   void turnTabletOn( bool turnOn );
   void resetTablet();
 
@@ -171,6 +173,8 @@ public:
   void timeoutCheck();
 
   void setAutonomousAbility( const std::string & ability, bool enable );
+
+  void shutdownRobot( bool restart = false );
 
   void cancelBodyMovement();
 
@@ -191,6 +195,7 @@ private:
   boost::shared_ptr<ALAutonomousLifeProxy> autoLifeProxy_;
   boost::shared_ptr<ALBehaviorManagerProxy> behaviourManagerProxy_;
   boost::shared_ptr<ALBasicAwarenessProxy> basicAwarenessProxy_;
+  boost::shared_ptr<ALSystemProxy> systemProxy_;
   boost::shared_ptr<ALProxy> autoblinkingProxy_;
   boost::shared_ptr<ALProxy> backgroundMovementProxy_;
   boost::shared_ptr<ALProxy> listenMovementProxy_;

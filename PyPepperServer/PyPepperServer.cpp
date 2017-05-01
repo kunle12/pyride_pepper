@@ -41,7 +41,7 @@ void * videograb_thread( void * controller )
   return NULL;
 }
 
-NaoCam::NaoCam( boost::shared_ptr<ALBroker> pBroker, const std::string name, const int cameraID ) :
+NaoCam::NaoCam( boost::shared_ptr<ALBroker> pBroker, const std::string & name, const int cameraID ) :
   broker_( pBroker ),
   procThread_( (pthread_t)NULL ),
   gvmName_( "" ),

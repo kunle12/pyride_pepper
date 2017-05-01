@@ -228,6 +228,16 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     INFO_MSG( "Pepper Basic Awareness is successfully initialised.\n" );
   }
   try {
+    systemProxy_ = boost::shared_ptr<ALSystemProxy>(new ALSystemProxy( broker ));
+  }
+  catch (const ALError& e) {
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALSystemProxy.\n");
+    systemProxy_.reset();
+  }
+  if (systemProxy_) {
+    INFO_MSG( "Pepper system proxy is successfully initialised.\n" );
+  }
+  try {
     autoblinkingProxy_ = broker->getProxy( "ALAutonomousBlinking" );
     backgroundMovementProxy_ = broker->getProxy( "ALBackgroundMovement" );
     listenMovementProxy_ = broker->getProxy( "ALListeningMovement" );
@@ -917,6 +927,15 @@ void PepperProxyManager::reloadWebpage( bool bypassCache )
   }
 }
 
+void PepperProxyManager::clearWebpage( bool hide )
+{
+  if (tabletProxy_) {
+    tabletProxy_->call<void>( "cleanWebview" );
+    if (hide)
+      tabletProxy_->call<void>( "hideWebview" );
+  }
+}
+
 void PepperProxyManager::turnTabletOn( bool turnOn )
 {
   if (tabletProxy_) {
@@ -1107,6 +1126,16 @@ void PepperProxyManager::leaveStation()
   // to be implemented
 }
 
+void PepperProxyManager::shutdownRobot( bool restart )
+{
+  if (systemProxy_) {
+    if (restart)
+      systemProxy_->reboot();
+    else
+      systemProxy_->shutdown();
+  }
+}
+
 void PepperProxyManager::fini()
 {
   if (isChestLEDPulsating_) {
@@ -1145,6 +1174,9 @@ void PepperProxyManager::fini()
   }
   if (basicAwarenessProxy_) {
     basicAwarenessProxy_.reset();
+  }
+  if (systemProxy_) {
+    systemProxy_.reset();
   }
   if (autoblinkingProxy_) {
     autoblinkingProxy_.reset();

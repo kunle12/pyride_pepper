@@ -1431,13 +1431,16 @@ static PyObject * PyModule_PepperStopAllAudio( PyObject * self )
   Py_RETURN_NONE;
 }
 
+/** @name Choregraphe Behaviour Management Functions
+ *
+ */
+/**@{*/
 /*! \fn startBehaviour(name)
  *  \memberof PyPepper
  *  \brief Start playing a behaviour.
  *  \param str name. The name of the behaviour.
  *  \return bool. True == valid command; False == invalid command.
  */
-/**@}*/
 static PyObject * PyModule_PepperStartBehaviour( PyObject * self, PyObject * args )
 {
   char * name = NULL;
@@ -1462,7 +1465,6 @@ static PyObject * PyModule_PepperStartBehaviour( PyObject * self, PyObject * arg
  *  \param bool is_blocking. Optional, True = blocking call, False = non blocking. Default: False.
  *  \return bool. True == valid command; False == invalid command.
  */
-/**@}*/
 static PyObject * PyModule_PepperRunBehaviour( PyObject * self, PyObject * args )
 {
   char * name = NULL;
@@ -1496,7 +1498,6 @@ static PyObject * PyModule_PepperRunBehaviour( PyObject * self, PyObject * args 
  *  \param str name. The name of the behaviour.
  *  \return None.
  */
-/**@}*/
 static PyObject * PyModule_PepperStopBehaviour( PyObject * self, PyObject * args )
 {
   char * name = NULL;
@@ -1515,7 +1516,6 @@ static PyObject * PyModule_PepperStopBehaviour( PyObject * self, PyObject * args
  *  \brief Stop all playing behaviours.
  *  \return None.
  */
-/**@}*/
 static PyObject * PyModule_PepperStopAllBehaviours( PyObject * self )
 {
   PepperProxyManager::instance()->stopAllBehaviours();
@@ -1528,6 +1528,7 @@ static PyObject * PyModule_PepperStopAllBehaviours( PyObject * self )
  *  \param bool installed. Optional. True = Installed behaviours; False = Loaded behaviours. Default: False
  *  \return None.
  */
+/**@}*/
 static PyObject * PyModule_PepperGetBehaviourList( PyObject * self, PyObject * args )
 {
   PyObject * isYesObj = NULL;
@@ -1556,6 +1557,10 @@ static PyObject * PyModule_PepperGetBehaviourList( PyObject * self, PyObject * a
   return retObj;
 }
 
+/** @name Tablet Management Functions
+ *
+ */
+/**@{*/
 /*! \fn directToWeb(uri)
  *  \memberof PyPepper
  *  \brief direct Pepper tablet to a specified web site.
@@ -1581,16 +1586,43 @@ static PyObject * PyModule_PepperDirectToWeb( PyObject * self, PyObject * args )
  *  \brief Reload the current webpage on Pepper's tablet.
  *  \return None.
  */
-/**@}*/
 static PyObject * PyModule_PepperReloadWebpage( PyObject * self )
 {
   PepperProxyManager::instance()->reloadWebpage();
   Py_RETURN_NONE;
 }
 
+/*! \fn clearWebpage(hide)
+ *  \memberof PyPepper
+ *  \brief Clear the webpage displayed on the tablet's web browser
+ *  \param bool hide. True == Hide the browser; False == otherwise (default False)
+ *  \return None
+ */
+static PyObject * PyModule_PepperClearWebpage( PyObject * self, PyObject * args )
+{
+  PyObject * isYesObj = NULL;
+  bool isYes = false;
+
+  if (!PyArg_ParseTuple( args, "|O", &isYesObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+  if (isYesObj) {
+    if (PyBool_Check( isYesObj )) {
+      isYes = PyObject_IsTrue( isYesObj );
+    }
+    else {
+      PyErr_Format( PyExc_ValueError, "PyPepper.clearWebpage: the input parameter must be a boolean!" );
+      return NULL;
+    }
+  }
+  PepperProxyManager::instance()->clearWebpage( isYes );
+  Py_RETURN_NONE;
+}
+
 /*! \fn turnTabletOn(on)
  *  \memberof PyPepper
- *  \brief Ture Pepper tablet on or off
+ *  \brief Turn Pepper tablet on or off
  *  \param bool on. True == turn on the tablet; False == turn off the tablet.
  *  \return None
  */
@@ -1619,7 +1651,6 @@ static PyObject * PyModule_PepperTurnTabletOn( PyObject * self, PyObject * args 
  *  \brief Reset Pepper's tablet.
  *  \return None.
  */
-/**@}*/
 static PyObject * PyModule_PepperResetTablet( PyObject * self )
 {
   PepperProxyManager::instance()->resetTablet();
@@ -1631,7 +1662,6 @@ static PyObject * PyModule_PepperResetTablet( PyObject * self )
  *  \brief Retrieve Pepper's tablet status information and its MAC address.
  *  \return tuple. (status, mac address)
  */
-/**@}*/
 static PyObject * PyModule_PepperGetTabletWiFiInfo( PyObject * self )
 {
   std::string status = PepperProxyManager::instance()->getTabletWiFiStatus();
@@ -1668,7 +1698,6 @@ static PyObject * PyModule_PepperConnectTabletWiFiTo( PyObject * self, PyObject 
  *  \brief Disconnect Pepper's tablet WiFi connection with a hotspot
  *  \return bool. True == successful disconnection; False = failed.
  */
-/**@}*/
 static PyObject * PyModule_PepperDisconnectTabletWiFi( PyObject * self )
 {
   if (PepperProxyManager::instance()->disconnectTabletWiFi())
@@ -1679,10 +1708,11 @@ static PyObject * PyModule_PepperDisconnectTabletWiFi( PyObject * self )
 
 /*! \fn turnTabletWiFiOn(on)
  *  \memberof PyPepper
- *  \brief Ture Pepper tablet WiFi on or off
+ *  \brief Turn Pepper tablet WiFi on or off
  *  \param bool on. True == turn on the WiFi; False == turn off the WiFi.
  *  \return None
  */
+/**@}*/
 static PyObject * PyModule_PepperTurnTabletWiFiOn( PyObject * self, PyObject * args )
 {
   PyObject * isYesObj = NULL;
@@ -1798,7 +1828,6 @@ static PyObject * PyModule_PepperSetCameraParameter( PyObject * self, PyObject *
  *  \brief Return the current robot battery status.
  *  \return tuple(battery percentage, is_plugged_in, is_(dis)charging).
  */
-/**@}*/
 static PyObject * PyModule_PepperGetBatteryStatus( PyObject * self )
 {
   int batpercent = 0;
@@ -1821,6 +1850,35 @@ static PyObject * PyModule_PepperGetBatteryStatus( PyObject * self )
     return Py_BuildValue( "(iss)", batpercent, isplugged ? "plugged in" :
                          "unplugged", "not charging" );
   }
+}
+
+/*! \fn shutdownRobot(reboot)
+ *  \memberof PyPepper
+ *  \brief Shutting down the robot.
+ *  \param bool reboot. True == Reboot the robot; False == otherwise (default False)
+ *  \return None
+ */
+/**@}*/
+static PyObject * PyModule_PepperShutdownRobot( PyObject * self, PyObject * args )
+{
+  PyObject * isYesObj = NULL;
+  bool isYes = false;
+
+  if (!PyArg_ParseTuple( args, "|O", &isYesObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+  if (isYesObj) {
+    if (PyBool_Check( isYesObj )) {
+      isYes = PyObject_IsTrue( isYesObj );
+    }
+    else {
+      PyErr_Format( PyExc_ValueError, "PyPepper.shutdownRobot: the input parameter must be a boolean!" );
+      return NULL;
+    }
+  }
+  PepperProxyManager::instance()->shutdownRobot( isYes );
+  Py_RETURN_NONE;
 }
 
 #define INCLUDE_COMMON_PYMODULE_MEHTODS
@@ -1917,6 +1975,8 @@ static PyMethodDef PyModule_methods[] = {
     "Direct Pepper tablet browser to a URI." },
   { "reloadWebpage", (PyCFunction)PyModule_PepperReloadWebpage, METH_NOARGS,
     "Reload the current webpage on the Pepper tablet." },
+  { "clearWebpage", (PyCFunction)PyModule_PepperClearWebpage, METH_VARARGS,
+    "Clear the current webpage showing on the Pepper tablet." },
   { "turnTabletOn", (PyCFunction)PyModule_PepperTurnTabletOn, METH_VARARGS,
     "Turn Pepper tablet on or off." },
   { "resetTablet", (PyCFunction)PyModule_PepperResetTablet, METH_NOARGS,
@@ -1935,6 +1995,8 @@ static PyMethodDef PyModule_methods[] = {
     "Pulse the chest LED of Pepper between two colours." },
   { "getBatteryStatus", (PyCFunction)PyModule_PepperGetBatteryStatus, METH_NOARGS,
     "Get the current battery status." },
+  { "shutdownRobot", (PyCFunction)PyModule_PepperShutdownRobot, METH_VARARGS,
+    "Shutdown the Pepper robot." },
   { "setCameraParameter", (PyCFunction)PyModule_PepperSetCameraParameter, METH_VARARGS,
     "Set Pepper camera parameter. Input: int parameter id, int value. Check Pepper document for details. Default with no inputs sets parameter(s) to default values" },
 #define DEFINE_COMMON_PYMODULE_METHODS
