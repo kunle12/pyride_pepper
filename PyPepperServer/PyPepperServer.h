@@ -93,6 +93,8 @@ public:
   void onSingleChestButtonPressed();
   void onDoubleChestButtonPressed();
   void onTripleChestButtonPressed();
+
+  void onPowerHatchOpened();
   void onBatteryPowerPlugged();
   void onBatteryChargeChanged();
 

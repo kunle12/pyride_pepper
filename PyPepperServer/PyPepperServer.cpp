@@ -81,7 +81,7 @@ bool NaoCam::initDevice()
 
   try {
     gvmName_ = videoProxy_->subscribeCamera( GVMName, cameraID_, AL::kVGA, kYUV422ColorSpace,
-                                      /*kRGBColorSpace,*/ 10 );
+                                      /*kRGBColorSpace,*/ 5 );
   }
   catch (const ALError& e) {
     ERROR_MSG( "PyPepperServer: Could not register GVM to ALVideoDevice.\n" );
@@ -208,7 +208,7 @@ bool NaoCam::setCameraParameter( int pid, int value )
 
 bool NaoCam::getDefaultVideoSettings()
 {
-  vSettings_.fps = 10;
+  vSettings_.fps = 5;
   vSettings_.format = RGB;
   vSettings_.resolution = 2; // 640x480
   vSettings_.reserved = 0;
@@ -346,6 +346,9 @@ PyPepperServer::PyPepperServer( boost::shared_ptr<ALBroker> pBroker, const std::
   BIND_METHOD( PyPepperServer::onDoubleChestButtonPressed );
   functionName("onTripleChestButtonPressed", getName(), "Method called when the chest button pressed three times.");
   BIND_METHOD( PyPepperServer::onTripleChestButtonPressed );
+
+  functionName("onPowerHatchOpened", getName(), "Method called when the power hatch is opened or closed.");
+  BIND_METHOD( PyPepperServer::onPowerHatchOpened );
   functionName("onBatteryPowerPlugged", getName(), "Method called when the battery charger is plugged or unplugged.");
   BIND_METHOD( PyPepperServer::onBatteryPowerPlugged );
   functionName("onBatteryChargeChanged", getName(), "Method called when a change in battery level.");
@@ -360,7 +363,7 @@ void PyPepperServer::init()
   if (topCam->initDevice()) {
     naoCams_.push_back( topCam );
   }
-  NaoCam * bottomCam = new NaoCam( getParentBroker(), "Pepper bottom Head Cam", AL::kBottomCamera );
+  NaoCam * bottomCam = new NaoCam( getParentBroker(), "Pepper Bottom Head Cam", AL::kBottomCamera );
   if (bottomCam->initDevice()) {
     naoCams_.push_back( bottomCam );
   }
@@ -408,6 +411,7 @@ void PyPepperServer::init()
     memoryProxy_->subscribeToEvent( "ALChestButton/TripleClickOccurred", "PyPepperServer", "onTripleChestButtonPressed" );
     memoryProxy_->subscribeToEvent( "BatteryPowerPluggedChanged", "PyPepperServer", "onBatteryPowerPlugged" );
     memoryProxy_->subscribeToEvent( "BatteryChargeChanged", "PyPepperServer", "onBatteryChargeChanged" );
+    memoryProxy_->subscribeToEvent( "BatteryTrapIsOpen", "PyPepperServer", "onPowerHatchOpened" );
   }
 }
 
@@ -661,7 +665,7 @@ void PyPepperServer::onRearTactilTouched()
 /*! \typedef onRightHandTouched(status)
  *  \memberof PyPepper.
  *  \brief Callback function when one of Pepper's right hand tactile sensor is touched.
- *  \param bool status. True == touch on, False == touch off.
+ *  \param bool status. True == left hand touched; False == otherwise.
  *  \return None.
  */
 void PyPepperServer::onRightHandBackTouched()
@@ -686,7 +690,7 @@ void PyPepperServer::onRightHandBackTouched()
 /*! \typedef onLeftHandTouched(status)
  *  \memberof PyPepper.
  *  \brief Callback function when one of Pepper's left hand tactile sensor is touched.
- *  \param str status. status = "on" for touch on or "off" for touch off.
+ *  \param bool status. True == left hand touched; False == otherwise.
  *  \return None.
  */
 void PyPepperServer::onLeftHandBackTouched()
@@ -708,6 +712,11 @@ void PyPepperServer::onLeftHandBackTouched()
   PyGILState_Release( gstate );
 }
 
+/*! \typedef onMovementFailed()
+ *  \memberof PyPepper.
+ *  \brief Callback function when movement or navigation command failed.
+ *  \return None.
+ */
 void PyPepperServer::onMovementFailed()
 {
   PyGILState_STATE gstate;
@@ -718,6 +727,12 @@ void PyPepperServer::onMovementFailed()
   PyGILState_Release( gstate );
 }
 
+/*! \typedef onChestButtonPressed(noftimes)
+ *  \memberof PyPepper.
+ *  \brief Callback function when Pepper's chest button is pressed.
+ *  \param int noftimes. Number of button presses (between 1 and 3).
+ *  \return None.
+ */
 void PyPepperServer::onSingleChestButtonPressed()
 {
   ALCriticalSection section( callbackMutex_ );
@@ -742,9 +757,6 @@ void PyPepperServer::onDoubleChestButtonPressed()
 {
   ALCriticalSection section( callbackMutex_ );
 
-  /**
-   * Check that the bumper is pressed.
-   */
   PyObject * arg = NULL;
 
   PyGILState_STATE gstate;
@@ -762,9 +774,6 @@ void PyPepperServer::onTripleChestButtonPressed()
 {
   ALCriticalSection section( callbackMutex_ );
 
-  /**
-   * Check that the bumper is pressed.
-   */
   PyObject * arg = NULL;
 
   PyGILState_STATE gstate;
@@ -778,13 +787,16 @@ void PyPepperServer::onTripleChestButtonPressed()
   PyGILState_Release( gstate );
 }
 
+/*! \typedef onPowerPluggedChange(status)
+ *  \memberof PyPepper.
+ *  \brief Callback function when one of Pepper's left hand tactile sensor is touched.
+ *  \param bool status. True == power plugged in; False == otherwise.
+ *  \return None.
+ */
 void PyPepperServer::onBatteryPowerPlugged()
 {
   ALCriticalSection section( callbackMutex_ );
 
-  /**
-   * Check that the bumper is pressed.
-   */
   bool isplugged =  memoryProxy_->getData( "BatteryPowerPluggedChanged" );
   PyObject * arg = NULL;
 
@@ -794,6 +806,30 @@ void PyPepperServer::onBatteryPowerPlugged()
   arg = Py_BuildValue( "(O)", isplugged ? Py_True : Py_False );
 
   PyPepperModule::instance()->invokeCallback( "onPowerPluggedChange", arg );
+  Py_DECREF( arg );
+
+  PyGILState_Release( gstate );
+}
+
+/*! \typedef onPowerHatchOpened(status)
+ *  \memberof PyPepper.
+ *  \brief Callback function when one of Pepper's left hand tactile sensor is touched.
+ *  \param bool status. True == power hatch opened; False == otherwise.
+ *  \return None.
+ */
+void PyPepperServer::onPowerHatchOpened()
+{
+  ALCriticalSection section( callbackMutex_ );
+
+  bool isopened =  memoryProxy_->getData( "BatteryTrapIsOpen" );
+  PyObject * arg = NULL;
+
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  arg = Py_BuildValue( "(O)", isopened ? Py_True : Py_False );
+
+  PyPepperModule::instance()->invokeCallback( "onPowerHatchOpened", arg );
   Py_DECREF( arg );
 
   PyGILState_Release( gstate );
