@@ -115,7 +115,7 @@ private:
   VideoDeviceList naoCams_;
   AudioDeviceList naoAudio_;
 
-  bool executeRemoteCommand( PyRideExtendedCommand command,
+  bool executeRemoteCommand( PyRideExtendedCommand command, int & retVal,
                             const unsigned char * optionalData = NULL,
                             const int optionalDataLength = 0 );
   void cancelCurrentOperation();

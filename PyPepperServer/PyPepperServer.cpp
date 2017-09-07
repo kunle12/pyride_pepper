@@ -25,6 +25,7 @@
 #include "PyPepperServer.h"
 #include "PepperProxyManager.h"
 #include "AppConfigManager.h"
+#include "VideoToWebBridge.h"
 #include "PyPepperModule.h"
 
 PYRIDE_LOGGING_DECLARE( "/home/nao/log/tin.log" );
@@ -385,7 +386,8 @@ void PyPepperServer::init()
   ServerDataProcessor::instance()->addCommandHandler( this );
   AppConfigManager::instance()->loadConfigFromFile( DEFAULT_CONFIGURATION_FILE );
   ServerDataProcessor::instance()->setClientID( AppConfigManager::instance()->clientID() );
-  ServerDataProcessor::instance()->setDefaultRobotInfo( PEPPER, AppConfigManager::instance()->startPosition() );
+  ServerDataProcessor::instance()->setDefaultRobotInfo( PEPPER, AppConfigManager::instance()->startPosition(),
+      (RobotCapability)(MOBILITY|VIDEO_FEEDBACK|AUDIO_FEEBACK|MANIPULATION));
 
   PythonServer::instance()->init( AppConfigManager::instance()->enablePythonConsole(), PyPepperModule::instance() );
   ServerDataProcessor::instance()->discoverConsoles();
@@ -445,7 +447,7 @@ void PyPepperServer::fini()
   }*/
 }
 
-bool PyPepperServer::executeRemoteCommand( PyRideExtendedCommand command,
+bool PyPepperServer::executeRemoteCommand( PyRideExtendedCommand command, int & retVal,
                                             const unsigned char * optionalData,
                                             const int optionalDataLength )
 {
@@ -453,6 +455,7 @@ bool PyPepperServer::executeRemoteCommand( PyRideExtendedCommand command,
   // in PyRideCommon.h
   // for example:
   bool status = true;
+  retVal = 0;
   switch (command) {
     case SPEAK:
     {
@@ -487,6 +490,19 @@ bool PyPepperServer::executeRemoteCommand( PyRideExtendedCommand command,
       int volume;
       memcpy( &volume, dataPtr, sizeof( int ) );
       PepperProxyManager::instance()->setAudioVolume( volume );
+    }
+      break;
+    case VIDEO_FEEDBACK:
+    {
+      bool ison = (bool)optionalData[0];
+      if (ison) { // only the client with the exclusive control can do video feedback
+        VideoToWebBridge::instance()->start();
+        retVal = 1;
+      }
+      else {
+        VideoToWebBridge::instance()->stop();
+        retVal = 0;
+      }
     }
       break;
     default:
