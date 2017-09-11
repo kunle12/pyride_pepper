@@ -8,6 +8,7 @@ add_definitions( -DUSE_ENCRYPTION )
 
 qi_create_lib( pypepperserver
   SRC main.cpp
+      AudioFeedbackStream.cpp
       PepperProxyManager.cpp
       PyPepperServer.cpp
       PyPepperModule.cpp

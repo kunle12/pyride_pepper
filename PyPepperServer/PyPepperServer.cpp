@@ -26,6 +26,7 @@
 #include "PepperProxyManager.h"
 #include "AppConfigManager.h"
 #include "VideoToWebBridge.h"
+#include "AudioFeedbackStream.h"
 #include "PyPepperModule.h"
 
 PYRIDE_LOGGING_DECLARE( "/home/nao/log/tin.log" );
@@ -33,6 +34,7 @@ PYRIDE_LOGGING_DECLARE( "/home/nao/log/tin.log" );
 namespace pyride {
 
 static const int kMaxAudioSamples = 16384;
+static const int kAudioSampleRate = 16000;
 static const float kHFOV = 57.2;
 static const float kVFOV = 44.3;
 
@@ -227,7 +229,9 @@ bool PyPepperServer::initDevice()
 
   try {
     audioDevice->callVoid( "setClientPreferences", getName(),
-                          48000, (int)ALLCHANNELS, 0 );
+                          kAudioSampleRate, (int)FRONTCHANNEL, 0 );
+    audioDevice->callVoid( "setParameter", std::string("outputSampleRate"),
+                               kAudioSampleRate );
   }
   catch (const std::exception &error) {
     ERROR_MSG( "PyPepperServer: Could not set parameters to audio device.\n");
@@ -293,9 +297,9 @@ void PyPepperServer::process( const int &pNbOfInputChannels, const int &pNbrSamp
   if (!audioBuffer_)
     return;
 
-  //memcpy( audioBuffer_, pDataInterleaved, sizeof( AL_SOUND_FORMAT ) * pNbrSamples*pNbOfInputChannels );
+  memcpy( audioBuffer_, pDataInterleaved, sizeof( AL_SOUND_FORMAT ) * pNbrSamples*pNbOfInputChannels );
 
-  //char nofSkippedChannels = 3;
+  /*char nofSkippedChannels = 3;
 
   const AL_SOUND_FORMAT * iterAudioDataSource = pDataInterleaved;
   const AL_SOUND_FORMAT * iterAudioDataSourceEnd = pDataInterleaved+pNbrSamples*pNbOfInputChannels;
@@ -306,6 +310,7 @@ void PyPepperServer::process( const int &pNbOfInputChannels, const int &pNbrSamp
     (*iterAudioDataSelectedChannel++) = (*iterAudioDataSource++);
     iterAudioDataSource += 3; //nofSkippedChannels;
   }
+  */
 
   //printf( "captured %d audio samples data size %d nofchan %d\n", pNbrSamples, sizeof( AL_SOUND_FORMAT ) * pNbrSamples*pNbOfInputChannels, pNbOfInputChannels );
   this->processAndSendAudioData( audioBuffer_, pNbrSamples );
@@ -390,6 +395,7 @@ void PyPepperServer::init()
       (RobotCapability)(MOBILITY|VIDEO_FEEDBACK|AUDIO_FEEBACK|MANIPULATION));
 
   PythonServer::instance()->init( AppConfigManager::instance()->enablePythonConsole(), PyPepperModule::instance() );
+  VideoToWebBridge::instance()->setPyModuleExtension( PyPepperModule::instance() );
   ServerDataProcessor::instance()->discoverConsoles();
 
   if (memoryProxy_) {
@@ -501,6 +507,19 @@ bool PyPepperServer::executeRemoteCommand( PyRideExtendedCommand command, int & 
       }
       else {
         VideoToWebBridge::instance()->stop();
+        retVal = 0;
+      }
+    }
+      break;
+    case AUDIO_FEEDBACK:
+    {
+      bool ison = (bool)optionalData[0];
+      if (ison) { // only the client with the exclusive control can do video feedback
+        AudioFeedbackStream::instance()->addClient();
+        retVal = 1;
+      }
+      else {
+        AudioFeedbackStream::instance()->removeClient();
         retVal = 0;
       }
     }
