@@ -355,6 +355,8 @@ PyPepperServer::PyPepperServer( boost::shared_ptr<ALBroker> pBroker, const std::
 
   functionName("onPowerHatchOpened", getName(), "Method called when the power hatch is opened or closed.");
   BIND_METHOD( PyPepperServer::onPowerHatchOpened );
+  functionName("onConnectedToChargingStation", getName(), "Method called when the robot is connected or disconnected from the charging station.");
+  BIND_METHOD( PyPepperServer::onConnectedToChargingStation );
   functionName("onBatteryPowerPlugged", getName(), "Method called when the battery charger is plugged or unplugged.");
   BIND_METHOD( PyPepperServer::onBatteryPowerPlugged );
   functionName("onBatteryChargeChanged", getName(), "Method called when a change in battery level.");
@@ -399,7 +401,7 @@ void PyPepperServer::init()
   ServerDataProcessor::instance()->discoverConsoles();
 
   if (memoryProxy_) {
-    INFO_MSG( "Nao memory proxy is successfully initialised.\n" );
+    INFO_MSG( "Pepper memory proxy is successfully initialised.\n" );
     /* subscribe to sensor events */
     memoryProxy_->subscribeToEvent( "RightBumperPressed", "PyPepperServer", "onRightBumperPressed" );
     memoryProxy_->subscribeToEvent( "LeftBumperPressed", "PyPepperServer", "onLeftBumperPressed" );
@@ -420,6 +422,7 @@ void PyPepperServer::init()
     memoryProxy_->subscribeToEvent( "BatteryPowerPluggedChanged", "PyPepperServer", "onBatteryPowerPlugged" );
     memoryProxy_->subscribeToEvent( "BatteryChargeChanged", "PyPepperServer", "onBatteryChargeChanged" );
     memoryProxy_->subscribeToEvent( "BatteryTrapIsOpen", "PyPepperServer", "onPowerHatchOpened" );
+    memoryProxy_->subscribeToEvent( "ALBattery/ConnectedToChargingStation", "PyPepperServer", "onConnectedToChargingStation" );
   }
 }
 
@@ -848,7 +851,7 @@ void PyPepperServer::onBatteryPowerPlugged()
 
 /*! \typedef onPowerHatchOpened(status)
  *  \memberof PyPepper.
- *  \brief Callback function when one of Pepper's left hand tactile sensor is touched.
+ *  \brief Callback function when the power hatch is opened or closed.
  *  \param bool status. True == power hatch opened; False == otherwise.
  *  \return None.
  */
@@ -865,6 +868,30 @@ void PyPepperServer::onPowerHatchOpened()
   arg = Py_BuildValue( "(O)", isopened ? Py_True : Py_False );
 
   PyPepperModule::instance()->invokeCallback( "onPowerHatchOpened", arg );
+  Py_DECREF( arg );
+
+  PyGILState_Release( gstate );
+}
+
+/*! \typedef onConnectedToChargingStation(status)
+ *  \memberof PyPepper.
+ *  \brief Callback function when the robot is connected or disconnected to the charging station.
+ *  \param bool status. True == connected to charing station; False == otherwise.
+ *  \return None.
+ */
+void PyPepperServer::onConnectedToChargingStation()
+{
+  ALCriticalSection section( callbackMutex_ );
+
+  bool isopened =  memoryProxy_->getData( "ALBattery/ConnectedToChargingStation" );
+  PyObject * arg = NULL;
+
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  arg = Py_BuildValue( "(O)", isopened ? Py_True : Py_False );
+
+  PyPepperModule::instance()->invokeCallback( "onConnectedToChargingStation", arg );
   Py_DECREF( arg );
 
   PyGILState_Release( gstate );

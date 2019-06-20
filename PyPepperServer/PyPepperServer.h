@@ -95,6 +95,7 @@ public:
   void onTripleChestButtonPressed();
 
   void onPowerHatchOpened();
+  void onConnectedToChargingStation();
   void onBatteryPowerPlugged();
   void onBatteryChargeChanged();
 

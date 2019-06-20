@@ -1078,6 +1078,62 @@ void PepperProxyManager::pulsatingChestLED( const NAOLedColour colour1, const NA
   }
 }
 
+void PepperProxyManager::setFaceLED( const NAOLedColour colour )
+{
+  if (ledProxy_) {
+    switch (colour) {
+      case WHITE:
+        ledProxy_->on( "FaceLeds" );
+        break;
+      case BLANK:
+        ledProxy_->off( "FaceLeds" );
+        break;
+      case RED:
+        ledProxy_->off( "RightFaceLedsBlue" );
+        ledProxy_->off( "RightFaceLedsGreen" );
+        ledProxy_->on( "RightFaceLedsRed" );
+        ledProxy_->off( "LeftFaceLedsBlue" );
+        ledProxy_->off( "LeftFaceLedsGreen" );
+        ledProxy_->on( "LeftFaceLedsRed" );
+        break;
+      case BLUE:
+        ledProxy_->on( "RightFaceLedsBlue" );
+        ledProxy_->off( "RightFaceLedsGreen" );
+        ledProxy_->off( "RightFaceLedsRed" );
+        ledProxy_->on( "LeftFaceLedsBlue" );
+        ledProxy_->off( "LeftFaceLedsGreen" );
+        ledProxy_->off( "LeftFaceLedsRed" );
+        break;
+      case GREEN:
+        ledProxy_->off( "RightFaceLedsBlue" );
+        ledProxy_->on( "RightFaceLedsGreen" );
+        ledProxy_->off( "RightFaceLedsRed" );
+        ledProxy_->off( "LeftFaceLedsBlue" );
+        ledProxy_->on( "LeftFaceLedsGreen" );
+        ledProxy_->off( "LeftFaceLedsRed" );
+        break;
+      case YELLOW:
+        ledProxy_->off( "RightFaceLedsBlue" );
+        ledProxy_->on( "RightFaceLedsGreen" );
+        ledProxy_->on( "RightFaceLedsRed" );
+        ledProxy_->off( "LeftFaceLedsBlue" );
+        ledProxy_->on( "LeftFaceLedsGreen" );
+        ledProxy_->on( "LeftFaceLedsRed" );
+        break;
+      case PINK:
+        ledProxy_->on( "RightFaceLedsBlue" );
+        ledProxy_->off( "RightFaceLedsGreen" );
+        ledProxy_->on( "RightFaceLedsRed" );
+        ledProxy_->on( "LeftFaceLedsBlue" );
+        ledProxy_->off( "LeftFaceLedsGreen" );
+        ledProxy_->on( "LeftFaceLedsRed" );
+        break;
+      default:
+        break;
+    }
+  }
+}
+
 void PepperProxyManager::getBatteryStatus( int & percentage, bool & isplugged, bool & ischarging, bool & isdischarging )
 {
   if (memoryProxy_) {

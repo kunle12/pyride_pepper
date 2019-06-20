@@ -22,7 +22,6 @@
 #include <alproxies/alledsproxy.h>
 #include <alproxies/alrobotpostureproxy.h>
 #include <alproxies/almemoryproxy.h>
-#include <alproxies/almemoryproxy.h>
 #include <alproxies/alnavigationproxy.h>
 #include <alproxies/alnotificationmanagerproxy.h>
 #include <alproxies/alautonomouslifeproxy.h>
@@ -103,6 +102,8 @@ public:
   void setChestLED( const NAOLedColour colour );
   void pulsatingChestLED( const NAOLedColour colour1, const NAOLedColour colour2, const float period = 0.5 );
   void continuePulseChestLED();
+
+  void setFaceLED( const NAOLedColour colour );
 
   void getBatteryStatus( int & percentage, bool & isplugged, bool & ischarging, bool & isdischarging );
 
