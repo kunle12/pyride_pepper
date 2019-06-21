@@ -369,15 +369,15 @@ void PyPepperServer::init()
 
   NaoCam * topCam = new NaoCam( getParentBroker(), "Pepper Top Head Cam", AL::kTopCamera );
   if (topCam->initDevice()) {
-    naoCams_.push_back( topCam );
+    pepperCams_.push_back( topCam );
   }
   NaoCam * bottomCam = new NaoCam( getParentBroker(), "Pepper Bottom Head Cam", AL::kBottomCamera );
   if (bottomCam->initDevice()) {
-    naoCams_.push_back( bottomCam );
+    pepperCams_.push_back( bottomCam );
   }
 
   if (this->initDevice()) {
-    naoAudio_.push_back( this );
+    pepperAudio_.push_back( this );
   }
 
   try {
@@ -389,7 +389,7 @@ void PyPepperServer::init()
   }
 
   PepperProxyManager::instance()->initWithBroker( getParentBroker(), memoryProxy_ );
-  ServerDataProcessor::instance()->init( naoCams_, naoAudio_ );
+  ServerDataProcessor::instance()->init( pepperCams_, pepperAudio_ );
   ServerDataProcessor::instance()->addCommandHandler( this );
   AppConfigManager::instance()->loadConfigFromFile( DEFAULT_CONFIGURATION_FILE );
   ServerDataProcessor::instance()->setClientID( AppConfigManager::instance()->clientID() );
@@ -430,15 +430,15 @@ void PyPepperServer::fini()
 {
   this->notifySystemShutdown();
 
-  for (int i = 0; i < naoCams_.size(); i++) {
-    VideoDevice * naocam = naoCams_.at( i );
+  for (int i = 0; i < pepperCams_.size(); i++) {
+    VideoDevice * naocam = pepperCams_.at( i );
     naocam->finiDevice();
     delete naocam;
   }
-  naoCams_.clear();
+  pepperCams_.clear();
 
   this->finiDevice();
-  naoAudio_.clear();
+  pepperAudio_.clear();
 
   PepperProxyManager::instance()->fini();
   AppConfigManager::instance()->fini();

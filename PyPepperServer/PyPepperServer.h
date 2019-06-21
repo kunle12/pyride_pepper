@@ -113,8 +113,8 @@ private:
 
   AL_SOUND_FORMAT * audioBuffer_;
 
-  VideoDeviceList naoCams_;
-  AudioDeviceList naoAudio_;
+  VideoDeviceList pepperCams_;
+  AudioDeviceList pepperAudio_;
 
   bool executeRemoteCommand( PyRideExtendedCommand command, int & retVal,
                             const unsigned char * optionalData = NULL,

@@ -87,13 +87,13 @@ public:
   ~PepperProxyManager();
 
   void initWithBroker( boost::shared_ptr<ALBroker> broker, boost::shared_ptr<ALMemoryProxy> memoryProxy );
-  void say( const std::string & text, bool toAnimate = true, bool toBlock = false );
+  bool say( const std::string & text, bool toAnimate = true );
 
   int loadAudioFile( const std::string & text );
   void unloadAudioFile( const int audioID );
   void unloadAllAudioFiles();
   void playWebAudio( const std::string & url );
-  void playAudioID( const int audioID, bool toBlock = false );
+  bool playAudioID( const int audioID );
   int  getAudioVolume();
   void setAudioVolume( const int vol );
   void pauseAudioID( const int audioID );
@@ -108,7 +108,7 @@ public:
   void getBatteryStatus( int & percentage, bool & isplugged, bool & ischarging, bool & isdischarging );
 
   bool getHeadPos( float & yaw, float & pitch );
-  void moveHeadTo( const float yaw, const float pitch, bool relative = false, float frac_speed = 0.05 );
+  bool moveHeadTo( const float yaw, const float pitch, bool relative = false, float frac_speed = 0.05 );
   void updateHeadPos( const float yaw, const float pitch, const float speed = 0.1 );
 
   void getBodyJointsPos( std::vector<float> & positions,
@@ -124,10 +124,10 @@ public:
   void setLegStiffness( const float stiff );
 
   bool moveArmWithJointPos( bool isLeft, const std::vector<float> & positions,
-                           float frac_speed = 0.5, bool inpost = false );
+                           float frac_speed = 0.5 );
 
   bool moveArmWithJointTrajectory( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
-                                                   std::vector<float> & times_to_reach, bool inpost = false );
+                                    std::vector<float> & times_to_reach );
 
   bool moveLegWithJointPos( const std::vector<float> & positions,
                            float frac_speed = 0.5 );
@@ -135,8 +135,9 @@ public:
   bool moveBodyWithJointPos( const std::vector<float> & positions,
                             float frac_speed = 0.5 );
 
-  bool moveBodyWithRawTrajectoryData( std::vector<std::string> joint_names, std::vector< std::vector<AngleControlPoint> > & key_frames,
-                                                 std::vector< std::vector<float> > & time_stamps, bool isBezier, bool inpost = false );
+  bool moveBodyWithRawTrajectoryData( std::vector<std::string> joint_names, 
+                                      std::vector< std::vector<AngleControlPoint> > & key_frames,
+                                      std::vector< std::vector<float> > & time_stamps, bool isBezier  );
 
   bool setHandPosition( bool isLeft, float openRatio, bool keepStiff );
 
@@ -146,14 +147,14 @@ public:
   void gotoStation();
   void leaveStation();
 
-  bool moveBodyTo( const RobotPose & pose, float duration = 5.0, bool cancelPreviousMove = true, bool inpose = false );
+  bool moveBodyTo( const RobotPose & pose, float duration = 10.0, bool cancelPreviousMove = true );
 
   bool navigateBodyTo( const RobotPose & pose, bool cancelPreviousMove = true );
 
   void updateBodyPose( const RobotPose & pose );
 
   bool startBehaviour( const std::string & behaviour );
-  bool runBehaviour( const std::string & behaviour, bool inpost = false );
+  bool runBehaviour( const std::string & behaviour );
   void stopBehaviour( const std::string & behavour );
   void stopAllBehaviours();
 
@@ -181,6 +182,21 @@ public:
 
   void fini();
 
+  void blockedSpeech( const std::string & text, bool toAnimate );
+  void blockedHeadMove( const float yaw, const float pitch, bool relative, float frac_speed );
+  void blockedArmMove( bool isLeftArm, const std::vector<float> & positions, float frac_speed );
+  void blockedArmMoveTraj( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
+      std::vector<float> & times_to_reach );
+  void blockedBodyMoveWithData( std::vector<std::string> joint_names, std::vector< std::vector<AngleControlPoint> > & key_frames,
+                                std::vector< std::vector<float> > & time_stamps, bool isBezier );
+  void blockedBodyMoveTo( const RobotPose & pose, float duration );
+
+  void blockedHandMove( bool isLeft, float openRatio, bool keepStiff );
+
+  void blockedBehaviourRun( const std::string & behaviour );
+
+  void blockedPlayAudio( const int audioID );
+
 private:
   static PepperProxyManager * s_pPepperProxyManager;
 
@@ -202,14 +218,33 @@ private:
   boost::shared_ptr<ALProxy> listenMovementProxy_;
   boost::shared_ptr<ALProxy> tabletProxy_;
 
+  boost::thread * speechThread_;
+  boost::thread * headmoveThread_;
+  boost::thread * larmmoveThread_;
+  boost::thread * rarmmoveThread_;
+  boost::thread * lhandmoveThread_;
+  boost::thread * rhandmoveThread_;
+  boost::thread * bodymoveThread_;
+  boost::thread * behaviourThread_;
+  boost::thread * audioThread_;
+
   //motion related data
   ALValue jointLimits_;
 
   struct timeval cmdTimeStamp_;
 
   bool moveInitialised_;
-
   bool isChestLEDPulsating_;
+  bool speechCtrl_;
+  bool headCtrl_;
+  bool lArmCtrl_;
+  bool rArmCtrl_;
+  bool lHandCtrl_;
+  bool rHandCtrl_;
+  bool bodyCtrl_;
+  bool behaviourCtrl_;
+  bool audioCtrl_;
+
   ALValue ledColourHex_;
   ALValue ledChangePeriod_;
   pthread_t runningThread_;
