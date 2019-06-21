@@ -357,6 +357,8 @@ PyPepperServer::PyPepperServer( boost::shared_ptr<ALBroker> pBroker, const std::
   BIND_METHOD( PyPepperServer::onPowerHatchOpened );
   functionName("onConnectedToChargingStation", getName(), "Method called when the robot is connected or disconnected from the charging station.");
   BIND_METHOD( PyPepperServer::onConnectedToChargingStation );
+  functionName("onBatteryNearlyEmpty", getName(), "Method called when the robot is connected or disconnected from the charging station.");
+  BIND_METHOD( PyPepperServer::onBatteryNearlyEmpty );
   functionName("onBatteryPowerPlugged", getName(), "Method called when the battery charger is plugged or unplugged.");
   BIND_METHOD( PyPepperServer::onBatteryPowerPlugged );
   functionName("onBatteryChargeChanged", getName(), "Method called when a change in battery level.");
@@ -423,6 +425,7 @@ void PyPepperServer::init()
     memoryProxy_->subscribeToEvent( "BatteryChargeChanged", "PyPepperServer", "onBatteryChargeChanged" );
     memoryProxy_->subscribeToEvent( "BatteryTrapIsOpen", "PyPepperServer", "onPowerHatchOpened" );
     memoryProxy_->subscribeToEvent( "ALBattery/ConnectedToChargingStation", "PyPepperServer", "onConnectedToChargingStation" );
+    memoryProxy_->subscribeToEvent( "BatteryNearlyEmpty", "PyPepperServer", "onBatteryNearlyEmpty" );
   }
 }
 
@@ -893,6 +896,21 @@ void PyPepperServer::onConnectedToChargingStation()
 
   PyPepperModule::instance()->invokeCallback( "onConnectedToChargingStation", arg );
   Py_DECREF( arg );
+
+  PyGILState_Release( gstate );
+}
+
+/*! \typedef onBatteryNearlyEmpty()
+ *  \memberof PyPepper.
+ *  \brief Callback function when the battery is near empty and needs to recharge.
+ *  \return None.
+ */
+void PyPepperServer::onBatteryNearlyEmpty()
+{
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  PyPepperModule::instance()->invokeCallback( "onBatteryNearlyEmpty", NULL );
 
   PyGILState_Release( gstate );
 }

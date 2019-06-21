@@ -247,6 +247,16 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     INFO_MSG( "Pepper Basic Awareness is successfully initialised.\n" );
   }
   try {
+    rechargeProxy_ = boost::shared_ptr<ALRechargeProxy>(new ALRechargeProxy( broker ));
+  }
+  catch (const ALError& e) {
+    ERROR_MSG( "PyPepperServer: Could not create a proxy to ALRechargeProxy.\n");
+    rechargeProxy_.reset();
+  }
+  if (rechargeProxy_) {
+    INFO_MSG( "Pepper Auto Recharge is successfully initialised.\n" );
+  }
+  try {
     systemProxy_ = boost::shared_ptr<ALSystemProxy>(new ALSystemProxy( broker ));
   }
   catch (const ALError& e) {
@@ -1638,12 +1648,16 @@ void PepperProxyManager::setAutonomousAbility( const std::string & ability, bool
 
 void PepperProxyManager::gotoStation()
 {
-  // to be implemented
+  if (rechargeProxy_) {
+    rechargeProxy_->goToStation();
+  }
 }
 
 void PepperProxyManager::leaveStation()
 {
-  // to be implemented
+  if (rechargeProxy_) {
+    rechargeProxy_->leaveStation();
+  }
 }
 
 void PepperProxyManager::shutdownRobot( bool restart )
@@ -1694,6 +1708,9 @@ void PepperProxyManager::fini()
   }
   if (basicAwarenessProxy_) {
     basicAwarenessProxy_.reset();
+  }
+  if (rechargeProxy_) {
+    rechargeProxy_.reset();
   }
   if (systemProxy_) {
     systemProxy_.reset();

@@ -96,6 +96,7 @@ public:
 
   void onPowerHatchOpened();
   void onConnectedToChargingStation();
+  void onBatteryNearlyEmpty();
   void onBatteryPowerPlugged();
   void onBatteryChargeChanged();
 

@@ -212,6 +212,7 @@ private:
   boost::shared_ptr<ALAutonomousLifeProxy> autoLifeProxy_;
   boost::shared_ptr<ALBehaviorManagerProxy> behaviourManagerProxy_;
   boost::shared_ptr<ALBasicAwarenessProxy> basicAwarenessProxy_;
+  boost::shared_ptr<ALRechargeProxy> rechargeProxy_;
   boost::shared_ptr<ALSystemProxy> systemProxy_;
   boost::shared_ptr<ALProxy> autoblinkingProxy_;
   boost::shared_ptr<ALProxy> backgroundMovementProxy_;
