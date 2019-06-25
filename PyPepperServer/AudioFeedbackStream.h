@@ -14,7 +14,11 @@
 #include <boost/thread/thread.hpp>
 #include <alcommon/alproxy.h>
 
+#ifdef OLD_NAO
+#include <opus.h>
+#else
 #include <opus/opus.h>
+#endif
 
 #include "RTPDataReceiver.h"
 #include "PyModuleStub.h"
