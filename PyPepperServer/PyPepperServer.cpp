@@ -84,7 +84,7 @@ bool NaoCam::initDevice()
 
   try {
     gvmName_ = videoProxy_->subscribeCamera( GVMName, cameraID_, AL::kVGA, kYUV422ColorSpace,
-                                      /*kRGBColorSpace,*/ 5 );
+                                      /*kRGBColorSpace,*/ 10 );
   }
   catch (const ALError& e) {
     ERROR_MSG( "PyPepperServer: Could not register GVM to ALVideoDevice.\n" );
