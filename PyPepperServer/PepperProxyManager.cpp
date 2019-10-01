@@ -439,16 +439,16 @@ void PepperProxyManager::updateHeadPos( const float yaw, const float pitch, cons
     newHeadPos.arraySetSize( 2 );
 
     std::vector<float> curHeadPos;
-    motionProxy_->setStiffnesses( names, stiff );
+    //motionProxy_->setStiffnesses( names, stiff );
 
     curHeadPos = motionProxy_->getAngles( names, true );
 
-    newHeadPos[0] = clamp( yaw + curHeadPos.at( 0 ), HEAD_YAW );
-    newHeadPos[1] = clamp( pitch + curHeadPos.at( 1 ), HEAD_PITCH );
+    newHeadPos[0] = clamp_change( yaw, curHeadPos.at( 0 ), HEAD_YAW );
+    newHeadPos[1] = clamp_change( pitch, curHeadPos.at( 1 ), HEAD_PITCH );
 
     float myspeed = (speed > 1.0 || speed < 0.0 ) ? 0.1 : speed; // default to 0.1
     try {
-      motionProxy_->setAngles( names, newHeadPos, myspeed );
+      motionProxy_->changeAngles( names, newHeadPos, myspeed );
     }
     catch (...) {
       ERROR_MSG( "Unable to change angles to %s", newHeadPos.toString().c_str() );
@@ -1764,6 +1764,24 @@ float PepperProxyManager::clamp( float val, int jointInd )
   }
   else {
     return val;
+  }
+}
+
+inline float PepperProxyManager::clamp_change( float chg, float val, int jointInd )
+{
+  if (jointInd >= jointLimits_.getSize()) {
+    ERROR_MSG( "invalid joint index %d\n", jointInd );
+    return 0.0;
+  }
+  float sum = chg + val;
+  if (sum < (float)jointLimits_[jointInd][0]) {
+    return (float)jointLimits_[jointInd][0] - val;
+  }
+  else if (sum > (float)jointLimits_[jointInd][1]) {
+    return (float)jointLimits_[jointInd][1] - val;
+  }
+  else {
+    return chg;
   }
 }
 

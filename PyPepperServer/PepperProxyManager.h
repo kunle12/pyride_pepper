@@ -256,6 +256,7 @@ private:
   PepperProxyManager();
 
   float clamp( float val, int jointInd );
+  float clamp_change( float chg, float val, int jointInd );
   int colour2Hex( const NAOLedColour colour );
 
 };
