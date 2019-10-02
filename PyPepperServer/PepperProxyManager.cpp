@@ -434,7 +434,9 @@ void PepperProxyManager::updateHeadPos( const float yaw, const float pitch, cons
   if (motionProxy_) {
     AL::ALValue names = "Head";
     AL::ALValue newHeadPos;
-    AL::ALValue stiff = 1.0f;
+    // AL::ALValue stiff = 1.0f;
+    float yaw_value = 0.0;
+    float pitch_value = 0.0;
 
     newHeadPos.arraySetSize( 2 );
 
@@ -443,11 +445,19 @@ void PepperProxyManager::updateHeadPos( const float yaw, const float pitch, cons
 
     curHeadPos = motionProxy_->getAngles( names, true );
 
-    newHeadPos[0] = clamp_change( yaw, curHeadPos.at( 0 ), HEAD_YAW );
-    newHeadPos[1] = clamp_change( pitch, curHeadPos.at( 1 ), HEAD_PITCH );
+    yaw_value = clamp_change( yaw, curHeadPos.at( 0 ), HEAD_YAW );
+    pitch_value = clamp_change( pitch, curHeadPos.at( 1 ), HEAD_PITCH );
+
+    newHeadPos[0] = yaw_value / 2.0;
+    newHeadPos[1] = pitch_value / 2.0;
 
     float myspeed = (speed > 1.0 || speed < 0.0 ) ? 0.1 : speed; // default to 0.1
     try {
+      // HACK assuming input frequency is 10Hz and 3x commands
+      motionProxy_->changeAngles( names, newHeadPos, myspeed );
+      usleep( 33000 );
+      motionProxy_->changeAngles( names, newHeadPos, myspeed );
+      usleep( 33000 );
       motionProxy_->changeAngles( names, newHeadPos, myspeed );
     }
     catch (...) {
