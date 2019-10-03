@@ -126,18 +126,22 @@ public:
   bool moveArmWithJointPos( bool isLeft, const std::vector<float> & positions,
                            float frac_speed = 0.5 );
 
-  bool moveArmWithJointTrajectory( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
-                                    std::vector<float> & times_to_reach );
+  bool moveArmWithJointTrajectory( bool isLeftArm,
+                                   const std::vector< std::vector<float> > & trajectory,
+                                   const std::vector<float> & times_to_reach );
 
   bool moveLowerBodyWithJointPos( const std::vector<float> & positions,
-                           float frac_speed = 0.5 );
+                                  float frac_speed = 0.5 );
+
+  bool moveLowerBodyWithJointTrajectory( const std::vector< std::vector<float> > & trajectory,
+                                         const std::vector<float> & times_to_reach );
 
   bool moveBodyWithJointPos( const std::vector<float> & positions,
                             float frac_speed = 0.5 );
 
-  bool moveBodyWithRawTrajectoryData( std::vector<std::string> joint_names, 
-                                      std::vector< std::vector<AngleControlPoint> > & key_frames,
-                                      std::vector< std::vector<float> > & time_stamps, bool isBezier  );
+  bool moveBodyWithRawTrajectoryData( const std::vector<std::string> & joint_names,
+                                      const std::vector< std::vector<AngleControlPoint> > & key_frames,
+                                      const std::vector< std::vector<float> > & time_stamps, bool isBezier  );
 
   bool setHandPosition( bool isLeft, float openRatio, bool keepStiff );
 
@@ -185,10 +189,17 @@ public:
   void blockedSpeech( const std::string & text, bool toAnimate );
   void blockedHeadMove( const float yaw, const float pitch, bool relative, float frac_speed );
   void blockedArmMove( bool isLeftArm, const std::vector<float> & positions, float frac_speed );
-  void blockedArmMoveTraj( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
-      std::vector<float> & times_to_reach );
-  void blockedBodyMoveWithData( std::vector<std::string> joint_names, std::vector< std::vector<AngleControlPoint> > & key_frames,
-                                std::vector< std::vector<float> > & time_stamps, bool isBezier );
+  void blockedArmMoveTraj( bool isLeftArm,
+                           const std::vector< std::vector<float> > & trajectory,
+                           const std::vector<float> & times_to_reach );
+
+  void blockedLowerBodyMove( const std::vector<float> & positions, float frac_speed );
+  void blockedLowerBodyMoveTraj( const std::vector< std::vector<float> > & trajectory,
+                                 const std::vector<float> & times_to_reach );
+
+  void blockedBodyMoveWithData( const std::vector<std::string> & joint_names,
+                                const std::vector< std::vector<AngleControlPoint> > & key_frames,
+                                const std::vector< std::vector<float> > & time_stamps, bool isBezier );
   void blockedBodyMoveTo( const RobotPose & pose, float duration );
 
   void blockedHandMove( bool isLeft, float openRatio, bool keepStiff );
@@ -226,6 +237,7 @@ private:
   boost::thread * lhandmoveThread_;
   boost::thread * rhandmoveThread_;
   boost::thread * bodymoveThread_;
+  boost::thread * legmoveThread_;
   boost::thread * behaviourThread_;
   boost::thread * audioThread_;
 

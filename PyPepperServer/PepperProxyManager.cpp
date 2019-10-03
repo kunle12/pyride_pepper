@@ -73,6 +73,7 @@ PepperProxyManager::PepperProxyManager() :
   lhandmoveThread_( NULL ),
   rhandmoveThread_( NULL ),
   bodymoveThread_( NULL ),
+  legmoveThread_( NULL ),
   behaviourThread_( NULL ),
   audioThread_( NULL )
 {
@@ -774,8 +775,9 @@ void PepperProxyManager::blockedArmMove( bool isLeftArm, const std::vector<float
   }
 }
 
-bool PepperProxyManager::moveArmWithJointTrajectory( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
-                                                 std::vector<float> & times_to_reach )
+bool PepperProxyManager::moveArmWithJointTrajectory( bool isLeftArm,
+                                                     const std::vector< std::vector<float> > & trajectory,
+                                                     const std::vector<float> & times_to_reach )
 {
   if (!motionProxy_ || bodyCtrl_)
     return false;
@@ -828,8 +830,9 @@ bool PepperProxyManager::moveArmWithJointTrajectory( bool isLeftArm, std::vector
   return true;
 }
 
-void PepperProxyManager::blockedArmMoveTraj( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
-    std::vector<float> & times_to_reach )
+void PepperProxyManager::blockedArmMoveTraj( bool isLeftArm,
+                                             const std::vector< std::vector<float> > & trajectory,
+                                             const std::vector<float> & times_to_reach )
 {
   size_t traj_size = trajectory.size();
 
@@ -862,7 +865,7 @@ void PepperProxyManager::blockedArmMoveTraj( bool isLeftArm, std::vector< std::v
 
     float time_to_reach_for_pt = 0.0;
     for (size_t jp = 0; jp < traj_size; ++jp) {
-      joints[j][jp] = clamp( trajectory[jp][j], (isLeftArm ? L_SHOULDER_PITCH + j : R_SHOULDER_PITCH + j) );;
+      joints[j][jp] = clamp( trajectory[jp][j], (isLeftArm ? L_SHOULDER_PITCH + j : R_SHOULDER_PITCH + j) );
       time_to_reach_for_pt += times_to_reach[jp];
       times[j][jp] = time_to_reach_for_pt;
     }
@@ -911,35 +914,153 @@ void PepperProxyManager::blockedArmMoveTraj( bool isLeftArm, std::vector< std::v
 
 bool PepperProxyManager::moveLowerBodyWithJointPos( const std::vector<float> & positions, float frac_speed )
 {
-  if (!motionProxy_)
+  if (!motionProxy_ || bodyCtrl_)
     return false;
 
-  int pos_size = positions.size();
-  if (pos_size != 3) {
+  if (positions.size() != 3) {
     return false;
   }
+
+  if (legmoveThread_ && legmoveThread_->get_id() != boost::this_thread::get_id()) {
+    ERROR_MSG( "lower body movement is in progress.\n" );
+    return false;
+  }
+
+  bodyCtrl_ = true;
+
+  if (legmoveThread_) { // we already in the thread
+    blockedLowerBodyMove( positions, frac_speed );
+  }
+  else {
+    legmoveThread_ = new boost::thread( &PepperProxyManager::blockedLowerBodyMove, this, positions, frac_speed );
+  }
+
+  return true;
+}
+
+void PepperProxyManager::blockedLowerBodyMove( const std::vector<float> & positions, float frac_speed )
+{
+  int pos_size = positions.size();
+
   AL::ALValue names = "Leg";
   AL::ALValue angles;
-
-  motionProxy_->setStiffnesses( names, 1.0 );
 
   angles.arraySetSize( pos_size );
   for (int i = 0; i < pos_size; ++i) {
     angles[i] = clamp( positions[i], HIP_ROLL + i );
   }
+
+  bool isSuccess = true;
   try {
+    motionProxy_->setStiffnesses( names, 1.0 );
     motionProxy_->setAngles( names, angles, frac_speed );
   }
   catch (...) {
     ERROR_MSG( "Unable to set angle to %s", angles.toString().c_str() );
+    isSuccess = false;
+  }
+  bodyCtrl_ = false;
+
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  PyPepperModule::instance()->invokeCallback( (isSuccess ? "onMoveLowerBodySuccess" : "onMoveLowerBodyFailed"), NULL );
+
+  PyGILState_Release( gstate );
+
+  //DEBUG_MSG( "done lower body movement.\n" );
+  delete legmoveThread_;
+  legmoveThread_ = NULL;
+}
+
+bool PepperProxyManager::moveLowerBodyWithJointTrajectory( const std::vector< std::vector<float> > & trajectory,
+                                                           const std::vector<float> & times_to_reach )
+{
+  if (!motionProxy_ || bodyCtrl_)
+    return false;
+
+  size_t traj_size = trajectory.size();
+
+  if (traj_size <= 0 || traj_size != times_to_reach.size())
+    return false;
+
+  if (legmoveThread_ && legmoveThread_->get_id() != boost::this_thread::get_id()) {
+    ERROR_MSG( "lower body movement is in progress.\n" );
     return false;
   }
+
+  bodyCtrl_ = true;
+
+  if (legmoveThread_) { // we already in the thread
+    blockedLowerBodyMoveTraj( trajectory, times_to_reach );
+  }
+  else {
+    legmoveThread_ = new boost::thread( &PepperProxyManager::blockedLowerBodyMoveTraj, this, trajectory, times_to_reach );
+  }
+
   return true;
+}
+
+void PepperProxyManager::blockedLowerBodyMoveTraj( const std::vector< std::vector<float> > & trajectory,
+                                                   const std::vector<float> & times_to_reach )
+{
+  size_t traj_size = trajectory.size();
+
+  AL::ALValue names = AL::ALValue::array( "HipRoll",
+                                          "HipPitch",
+                                          "KneePitch" );
+
+  AL::ALValue joints;
+  AL::ALValue times;
+
+  joints.arraySetSize( 3 );
+  times.arraySetSize( 3 );
+
+  for (size_t j = 0; j < 3; ++j) {
+    AL::ALValue angles;
+    AL::ALValue ttr;
+
+    angles.arraySetSize( traj_size );
+    ttr.arraySetSize( traj_size );
+
+    joints[j] = angles;
+    times[j] = ttr;
+
+    float time_to_reach_for_pt = 0.0;
+    for (size_t jp = 0; jp < traj_size; ++jp) {
+      joints[j][jp] = clamp( trajectory[jp][j], HIP_ROLL + j );
+      time_to_reach_for_pt += times_to_reach[jp];
+      times[j][jp] = time_to_reach_for_pt;
+    }
+  }
+
+  bool isSuccess = true;
+
+  try {
+    motionProxy_->setStiffnesses( names, 1.0 );
+    motionProxy_->angleInterpolation( names, joints, times, true );
+  }
+  catch (...) {
+    ERROR_MSG( "Unable to set angle interpolation to %s.\n", joints.toString().c_str() );
+    isSuccess = false;
+  }
+  bodyCtrl_ = false;
+
+  PyGILState_STATE gstate;
+  gstate = PyGILState_Ensure();
+
+  PyPepperModule::instance()->invokeCallback( (isSuccess ? "onMoveLowerBodySuccess" : "onMoveLowerBodyFailed"), NULL );
+
+  PyGILState_Release( gstate );
+
+  //DEBUG_MSG( "done lower body movement.\n" );
+  delete legmoveThread_;
+  legmoveThread_ = NULL;
 }
 
 bool PepperProxyManager::moveBodyWithJointPos( const std::vector<float> & positions, float frac_speed )
 {
-  if (!motionProxy_ || bodyCtrl_)
+  if (!motionProxy_ || bodyCtrl_ || lArmCtrl_ || rArmCtrl_)
     return false;
 
   int pos_size = positions.size();
@@ -949,13 +1070,12 @@ bool PepperProxyManager::moveBodyWithJointPos( const std::vector<float> & positi
   AL::ALValue names = "Body";
   AL::ALValue angles;
 
-  motionProxy_->setStiffnesses( names, 1.0 );
-
   angles.arraySetSize( pos_size );
   for (int i = 0; i < pos_size; ++i) {
     angles[i] = clamp( positions[i], i );
   }
   try {
+    motionProxy_->setStiffnesses( names, 1.0 );
     motionProxy_->setAngles( names, angles, frac_speed );
   }
   catch (...) {
@@ -965,9 +1085,9 @@ bool PepperProxyManager::moveBodyWithJointPos( const std::vector<float> & positi
   return true;
 }
 
-bool PepperProxyManager::moveBodyWithRawTrajectoryData( std::vector<std::string> joint_names, 
-                                                        std::vector< std::vector<AngleControlPoint> > & key_frames,
-                                                        std::vector< std::vector<float> > & time_stamps, bool isBezier )
+bool PepperProxyManager::moveBodyWithRawTrajectoryData( const std::vector<std::string> & joint_names,
+                                                        const std::vector< std::vector<AngleControlPoint> > & key_frames,
+                                                        const std::vector< std::vector<float> > & time_stamps, bool isBezier )
 {
   // minimal check in this method. Use under you own risk!
   // TODO: this is a silly wrapper function. Should just do a simple cast.
@@ -996,8 +1116,9 @@ bool PepperProxyManager::moveBodyWithRawTrajectoryData( std::vector<std::string>
   return true;
 }
 
-void PepperProxyManager::blockedBodyMoveWithData( std::vector<std::string> joint_names, std::vector< std::vector<AngleControlPoint> > & key_frames,
-                                                std::vector< std::vector<float> > & time_stamps, bool isBezier )
+void PepperProxyManager::blockedBodyMoveWithData( const std::vector<std::string> & joint_names,
+                                                  const std::vector< std::vector<AngleControlPoint> > & key_frames,
+                                                  const std::vector< std::vector<float> > & time_stamps, bool isBezier )
 {
   AL::ALValue keys;
   AL::ALValue times;

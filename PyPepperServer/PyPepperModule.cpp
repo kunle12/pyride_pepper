@@ -554,9 +554,9 @@ static PyObject * PyModule_PepperMoveArmWithJointTraj( PyObject * self, PyObject
 
   for (int i = 0; i < listSize; ++i) {
     jointPos = PyList_GetItem( trajObj, i );
-    if (!PyDict_Check( jointPos ) || PyDict_Size( jointPos ) < 4) {
+    if (!PyDict_Check( jointPos ) || PyDict_Size( jointPos ) < 5) {
       PyErr_Format( PyExc_ValueError, "PyPepper.moveArmWithJointTrajectory: input list item %d "
-                   "must be a dictionary containing all 4 joint entries for a Pepper arm!", i );
+                   "must be a dictionary containing all 5 joint entries for a Pepper arm!", i );
       return NULL;
     }
     if (!armsel) { // check first object to determine whether we have either left or right arm joint data
@@ -653,6 +653,71 @@ static PyObject * PyModule_PepperMoveArmWithJointPos( PyObject * self, PyObject 
   positions[4] = w_y_j;
 
   if (PepperProxyManager::instance()->moveArmWithJointPos( isLeftArm, positions, frac_max_speed ))
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
+}
+
+/*! \fn moveLowerBodyWithJointTrajectory(joint_trajectory)
+ *  \memberof PyPepper
+ *  \brief Move a Pepper lower body to a sequence of joint positions, i.e. trajectory.
+ *  \param list joint_trajectory. A list of joint position dictionaries with the same structure of the PyPepper.moveArmWithJointPos.
+ *  \return bool. True == valid command; False == invalid command.
+ */
+static PyObject * PyModule_PepperMoveLowerBodyWithJointTraj( PyObject * self, PyObject * args )
+{
+  PyObject * trajObj = NULL;
+
+  if (!PyArg_ParseTuple( args, "O", &trajObj )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  int listSize = 0;
+
+  if (!PyList_Check( trajObj ) || (listSize = PyList_Size( trajObj )) == 0) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.moveLowerBodyWithJointTrajectory: input parameter must be a non empty list of dictionary!" );
+    return NULL;
+  }
+
+  PyObject * jointPos = NULL;
+  PyObject * jval = NULL;
+
+  std::vector< std::vector<float> > trajectory;
+  std::vector<float> times_to_reach( listSize, 2.0 ); // default to 2 seconds;
+
+  for (int i = 0; i < listSize; ++i) {
+    jointPos = PyList_GetItem( trajObj, i );
+    if (!PyDict_Check( jointPos ) || PyDict_Size( jointPos ) < 3) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.moveLowerBodyWithJointTrajectory: input list item %d "
+                   "must be a dictionary containing all 3 joint entries for a Pepper lower body!", i );
+      return NULL;
+    }
+
+    std::vector<float> leg_joint_pos( 3, 0.0 );
+
+    for (int k = 0; k < 3; k++) {
+      jval = PyDict_GetItemString( jointPos, kLowerBodyKWlist[k] );
+      if (!jval) {
+        PyErr_Format( PyExc_ValueError, "PyPepper.moveLowerBodyWithJointTrajectory: input list item %d has"
+                     " missing %s joint value!", i, kLowerBodyKWlist[k] );
+        return NULL;
+      }
+      if (!PyFloat_Check( jval )) {
+        PyErr_Format( PyExc_ValueError, "PyPepper.moveLowerBodyWithJointTrajectory: input list item %d has"
+                     " invalid %s joint values!", i, kLowerBodyKWlist[k] );
+        return NULL;
+      }
+      leg_joint_pos[k] = PyFloat_AsDouble( jval );
+    }
+    trajectory.push_back( leg_joint_pos );
+    jval = PyDict_GetItemString( jointPos, "time_to_reach" );
+    if (jval && PyFloat_Check( jval )) {
+      times_to_reach[i] = (float)PyFloat_AsDouble( jval );
+    }
+  }
+
+  if (PepperProxyManager::instance()->moveLowerBodyWithJointTrajectory( trajectory, times_to_reach ) )
     Py_RETURN_TRUE;
   else
     Py_RETURN_FALSE;
@@ -758,7 +823,7 @@ static PyObject * PyModule_PepperMoveBodyWithJointPos( PyObject * self, PyObject
 /*! \fn moveBodyWithRawTrajectoryData(joint_trajectory_data)
  *  \memberof PyPepper
  *  \brief Move the Pepper body joints in specified trajectories.
- *  \param dict joint_trajectory_data. A dictionary of {joints, keyframes, timestamps, is_blocking} where
+ *  \param dict joint_trajectory_data. A dictionary of {joints, keyframes, timestamps} where
  *  joints is a list of joint names that are factory defined, keyframes is a list of corresponding joint values (trajectory)
  *  for each joint specified in joints; timestamps is a list of corresponding time to reach values for the keyframes
  *  for each joint specified in joints;
@@ -1880,6 +1945,8 @@ static PyMethodDef PyModule_methods[] = {
     "Move one of Pepper arms with specific joint positions." },
   { "moveArmWithJointTrajectory", (PyCFunction)PyModule_PepperMoveArmWithJointTraj, METH_VARARGS,
     "Move one of Pepper arms with specific joint trajectory (a list of joint positions)." },
+  { "moveLowerBodyWithJointTrajectory", (PyCFunction)PyModule_PepperMoveLowerBodyWithJointTraj, METH_VARARGS,
+    "Move Pepper lower body joints with specific joint trajectory (a list of joint positions)." },
   { "moveLowerBodyWithJointPos", (PyCFunction)PyModule_PepperMoveLowerBodyWithJointPos, METH_VARARGS|METH_KEYWORDS,
     "Move one of Pepper legs with specific joint positions." },
   { "moveBodyWithJointPos", (PyCFunction)PyModule_PepperMoveBodyWithJointPos, METH_VARARGS|METH_KEYWORDS,
