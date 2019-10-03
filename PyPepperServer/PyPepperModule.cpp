@@ -30,7 +30,7 @@ static const char *kLeftArmKWlist[] = { "l_shoulder_pitch_joint", "l_shoulder_ro
 static const char *kRightArmKWlist[] = { "r_shoulder_pitch_joint", "r_shoulder_roll_joint", "r_elbow_yaw_joint", "r_elbow_roll_joint", "r_wrist_yaw_joint",
     "frac_max_speed", NULL };
 
-static const char *kLegKWlist[] = { "hip_roll_joint", "hip_pitch_joint", "knee_pitch_joint",
+static const char *kLowerBodyKWlist[] = { "hip_roll_joint", "hip_pitch_joint", "knee_pitch_joint",
     "frac_max_speed", NULL };
 
 static const char *kBodyRawJointDataKWlist[] = { "joints", "keyframes", "timestamps", NULL };
@@ -658,20 +658,20 @@ static PyObject * PyModule_PepperMoveArmWithJointPos( PyObject * self, PyObject 
     Py_RETURN_FALSE;
 }
 
-/*! \fn moveLegWithJointPos(joint_position, frac_max_speed)
+/*! \fn moveLowerBodyWithJointPos(joint_position, frac_max_speed)
  *  \memberof PyPepper
  *  \brief Move a Pepper's leg to the specified joint position with a certain speed.
  *  \param dict joint_position. A dictionary of leg joint positions in radian.
- *  The dictionary must the same structure as the return of PyPepper.getLegJointPositions.
+ *  The dictionary must the same structure as the return of PyPepper.getLowerBodyJointPositions.
  *  \param float frac_max_speed. Fraction of the maximum motor speed.
  *  \return bool. True == valid command; False == invalid command.
  */
-static PyObject * PyModule_PepperMoveLegWithJointPos( PyObject * self, PyObject * args, PyObject * keywds )
+static PyObject * PyModule_PepperMoveLowerBodyWithJointPos( PyObject * self, PyObject * args, PyObject * keywds )
 {
   float h_r_j, h_p_j, k_p_j;
   float frac_max_speed = 0.5;
 
-  if (!PyArg_ParseTupleAndKeywords( args, keywds, "fff|f", (char**)kLegKWlist,
+  if (!PyArg_ParseTupleAndKeywords( args, keywds, "fff|f", (char**)kLowerBodyKWlist,
                                   &h_r_j, &h_p_j, &k_p_j, &frac_max_speed ))
   {
     // PyArg_ParseTuple will set the error status.
@@ -679,7 +679,7 @@ static PyObject * PyModule_PepperMoveLegWithJointPos( PyObject * self, PyObject 
   }
 
   if (frac_max_speed > 1.0 || frac_max_speed < 0.0) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.moveLegWithJointPos: fraction of max speed must be a value within [0.0, 1.0]!" );
+    PyErr_Format( PyExc_ValueError, "PyPepper.moveLowerBodyWithJointPos: fraction of max speed must be a value within [0.0, 1.0]!" );
     return NULL;
   }
 
@@ -688,7 +688,7 @@ static PyObject * PyModule_PepperMoveLegWithJointPos( PyObject * self, PyObject 
   positions[1] = h_p_j;
   positions[2] = k_p_j;
 
-  if (PepperProxyManager::instance()->moveLegWithJointPos( positions, frac_max_speed ))
+  if (PepperProxyManager::instance()->moveLowerBodyWithJointPos( positions, frac_max_speed ))
     Py_RETURN_TRUE;
   else
     Py_RETURN_FALSE;
@@ -1112,13 +1112,13 @@ static PyObject * PyModule_PepperGetArmJointPositions( PyObject * self, PyObject
   return retObj;
 }
 
-/*! \fn getLegJointPositions()
+/*! \fn getLowerBodyJointPositions()
  *  \memberof PyPepper
  *  \brief Get the current joint positions of the Pepper leg.
  *  \return dictionary(leg_joint_positions).
  *  \note Returned dictionary use joint names as keys.
  */
-static PyObject * PyModule_PepperGetLegJointPositions( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperGetLowerBodyJointPositions( PyObject * self, PyObject * args )
 {
   PyObject * usbObj = NULL;
 
@@ -1134,18 +1134,18 @@ static PyObject * PyModule_PepperGetLegJointPositions( PyObject * self, PyObject
       useSensor = PyObject_IsTrue( usbObj );
     }
     else {
-      PyErr_Format( PyExc_ValueError, "PyPepper.getLegJointPositions: input parameter must be a boolean!" );
+      PyErr_Format( PyExc_ValueError, "PyPepper.getLowerBodyJointPositions: input parameter must be a boolean!" );
       return NULL;
     }
   }
 
   std::vector<float> positions( 3, 0.0 );
 
-  PepperProxyManager::instance()->getLegJointsPos( positions, useSensor );
+  PepperProxyManager::instance()->getLowerBodyJointsPos( positions, useSensor );
   PyObject * retObj = PyDict_New();
   for (int i = 0; i < 3; i++) {
     PyObject * numObj = PyFloat_FromDouble( positions.at( i ) );
-    PyDict_SetItemString( retObj, kLegKWlist[i], numObj );
+    PyDict_SetItemString( retObj, kLowerBodyKWlist[i], numObj );
     Py_DECREF( numObj );
   }
   return retObj;
@@ -1880,7 +1880,7 @@ static PyMethodDef PyModule_methods[] = {
     "Move one of Pepper arms with specific joint positions." },
   { "moveArmWithJointTrajectory", (PyCFunction)PyModule_PepperMoveArmWithJointTraj, METH_VARARGS,
     "Move one of Pepper arms with specific joint trajectory (a list of joint positions)." },
-  { "moveLegWithJointPos", (PyCFunction)PyModule_PepperMoveLegWithJointPos, METH_VARARGS|METH_KEYWORDS,
+  { "moveLowerBodyWithJointPos", (PyCFunction)PyModule_PepperMoveLowerBodyWithJointPos, METH_VARARGS|METH_KEYWORDS,
     "Move one of Pepper legs with specific joint positions." },
   { "moveBodyWithJointPos", (PyCFunction)PyModule_PepperMoveBodyWithJointPos, METH_VARARGS|METH_KEYWORDS,
     "Move Pepper all body joint positions." },
@@ -1888,7 +1888,7 @@ static PyMethodDef PyModule_methods[] = {
     "Move Pepper all body joints in fully specified trajectories." },
   { "getArmJointPositions", (PyCFunction)PyModule_PepperGetArmJointPositions, METH_VARARGS,
     "Get joint positions of Pepper's arms." },
-  { "getLegJointPositions", (PyCFunction)PyModule_PepperGetLegJointPositions, METH_VARARGS,
+  { "getLowerBodyJointPositions", (PyCFunction)PyModule_PepperGetLowerBodyJointPositions, METH_VARARGS,
     "Get joint positions of Pepper's torso." },
   { "getBodyJointPositions", (PyCFunction)PyModule_PepperGetBodyJointPositions, METH_VARARGS,
     "Get full joint positions of Pepper." },

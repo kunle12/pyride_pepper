@@ -633,7 +633,7 @@ void PepperProxyManager::getArmJointsPos( bool isLeft, std::vector<float> & posi
   }
 }
 
-void PepperProxyManager::getLegJointsPos( std::vector<float> & positions,
+void PepperProxyManager::getLowerBodyJointsPos( std::vector<float> & positions,
                      bool useSensor )
 {
   positions.clear();
@@ -909,7 +909,7 @@ void PepperProxyManager::blockedArmMoveTraj( bool isLeftArm, std::vector< std::v
   }
 }
 
-bool PepperProxyManager::moveLegWithJointPos( const std::vector<float> & positions, float frac_speed )
+bool PepperProxyManager::moveLowerBodyWithJointPos( const std::vector<float> & positions, float frac_speed )
 {
   if (!motionProxy_)
     return false;

@@ -115,7 +115,7 @@ public:
                         bool useSensor = false );
   void getArmJointsPos( bool isLeft, std::vector<float> & positions,
                        bool useSensor = false );
-  void getLegJointsPos( std::vector<float> & positions,
+  void getLowerBodyJointsPos( std::vector<float> & positions,
                        bool useSensor = false );
 
   void setArmStiffness( bool isLeft, const float stiff );
@@ -129,7 +129,7 @@ public:
   bool moveArmWithJointTrajectory( bool isLeftArm, std::vector< std::vector<float> > & trajectory,
                                     std::vector<float> & times_to_reach );
 
-  bool moveLegWithJointPos( const std::vector<float> & positions,
+  bool moveLowerBodyWithJointPos( const std::vector<float> & positions,
                            float frac_speed = 0.5 );
 
   bool moveBodyWithJointPos( const std::vector<float> & positions,
