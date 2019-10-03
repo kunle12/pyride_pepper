@@ -88,6 +88,7 @@ public:
 
   void initWithBroker( boost::shared_ptr<ALBroker> broker, boost::shared_ptr<ALMemoryProxy> memoryProxy );
   bool say( const std::string & text, bool toAnimate = true );
+  void setSpeechParameter( const std::string & param, float value );
 
   int loadAudioFile( const std::string & text );
   void unloadAudioFile( const int audioID );

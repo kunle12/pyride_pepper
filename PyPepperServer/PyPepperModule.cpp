@@ -171,14 +171,14 @@ static PyObject * PyModule_sendTeamMessage( PyObject *self, PyObject * args )
   Py_RETURN_NONE;
 }
 
-/*! \fn say(text, volume, animated)
+/*! \fn say(text, animated)
  *  \memberof PyPepper
  *  \brief Let Pepper to speak an input text.
  *  \param string text. Text that be spoken by Pepper
  *  \param bool animated. True == speak with arm movements; False == plain speaking. Optional, default is False.
  *  \return True == successful, False otherwise.
  */
-static PyObject * PyModule_PepperSayWithVolume( PyObject * self, PyObject * args )
+static PyObject * PyModule_PepperSayWithAnimation( PyObject * self, PyObject * args )
 {
   char * dataStr = NULL;
   bool toAnimate = false;
@@ -206,6 +206,70 @@ static PyObject * PyModule_PepperSayWithVolume( PyObject * self, PyObject * args
   else {
     Py_RETURN_FALSE;
   }
+}
+
+/*! \fn setSpeechParameter(parameter, value )
+ *  \memberof PyPepper
+ *  \brief Set specific speech engine parameter
+ *  \param string parameter. Parameter name.
+ *  \param integer value. Parameter value. Optional. If omits, reset to the default value.
+ *  \return None
+ */
+static PyObject * PyModule_PepperSetSpeechParameter( PyObject * self, PyObject * args )
+{
+  char * paramStr = NULL;
+
+  float value = 0.0;
+
+  if (!PyArg_ParseTuple( args, "s|f", &paramStr, &value )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+  std::string param( paramStr );
+
+  if (param.compare( "pitchShift" ) == 0) {
+    if (value != 0.0 && (value < 1.0 || value > 4.0)) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.setSpeechParameter: out of range for pitchShift [1, 4]" );
+      return NULL;
+    }
+  }
+  else if (param.compare( "doubleVoice" ) == 0) {
+    if (value != 0.0 && (value < 1.0 || value > 4.0)) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.setSpeechParameter: out of range for doubleVoice [1, 4]" );
+      return NULL;
+    }
+  }
+  else if (param.compare( "doubleVoiceLevel" ) == 0) {
+    if (value < 0.0 || value > 4.0) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.setSpeechParameter: out of range for doubleVoiceLevel [0, 4]" );
+      return NULL;
+    }
+  }
+  else if (param.compare( "doubleVoiceTimeShift" ) == 0) {
+    if (value < 0.0 || value > 0.5) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.setSpeechParameter: out of range for doubleVoiceTimeShift [0, 0.5]" );
+      return NULL;
+    }
+  }
+  else if (param.compare( "speed" ) == 0) {
+    if (value != 0.0 && (value < 50.0 || value > 400.0)) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.setSpeechParameter: out of range for speed [50, 400]" );
+      return NULL;
+    }
+  }
+  else if (param.compare( "defaultVoiceSpeed" ) == 0) {
+    if (value < 50.0 || value > 400.0) {
+      PyErr_Format( PyExc_ValueError, "PyPepper.setSpeechParameter: out of range for defaultVoiceSpeed [50, 400]" );
+      return NULL;
+    }
+  }
+  else {
+    PyErr_Format( PyExc_ValueError, "PyPepper.setSpeechParameter: unsupported parameter %s", paramStr );
+    return NULL;
+  }
+
+  PepperProxyManager::instance()->setSpeechParameter( param, value );
+  Py_RETURN_NONE;
 }
 
 /*! \fn moveHeadTo(head_yaw, head_pitch, relative, frac_speed)
@@ -1913,8 +1977,10 @@ static PyMethodDef PyModule_methods[] = {
     "Set Pepper team member ID and team colour." },
   { "sendTeamMessage", (PyCFunction)PyModule_sendTeamMessage, METH_VARARGS,
     "Send a message to the rest team members." },
-  { "say", (PyCFunction)PyModule_PepperSayWithVolume, METH_VARARGS,
-    "Let Pepper speak with an optional volume and animation." },
+  { "say", (PyCFunction)PyModule_PepperSayWithAnimation, METH_VARARGS,
+    "Let Pepper speak with an optional animation." },
+  { "setSpeechParameter", (PyCFunction)PyModule_PepperSetSpeechParameter, METH_VARARGS,
+    "Set speech engine parameter." },
   { "moveHeadTo", (PyCFunction)PyModule_PepperMoveHeadTo, METH_VARARGS,
     "Move Pepper head to a new position." },
   { "updateHeadPos", (PyCFunction)PyModule_PepperUpdateHeadPos, METH_VARARGS,

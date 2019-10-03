@@ -292,6 +292,20 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
   }
 }
 
+void PepperProxyManager::setSpeechParameter( const std::string & param, float value )
+{
+  if (!speechProxy_) {
+    return;
+  }
+  
+  //if (param.compare("speech") == 0 && value == 0.0) {
+    //speechProxy_->resetSpeed();
+  //}
+  //else {
+    speechProxy_->setParameter( param, value );
+  //}
+}
+
 bool PepperProxyManager::say( const std::string & text, bool toAnimate )
 {
   if (speechCtrl_ || text.length() <= 0)
@@ -1758,7 +1772,7 @@ void PepperProxyManager::setAutonomousAbility( const std::string & ability, bool
   */
   std::string cmd = ability;
   std::transform( cmd.begin(), cmd.end(), cmd.begin(), ::tolower );
-  if (ability.compare( "basicawareness") == 0 && basicAwarenessProxy_) {
+  if (ability.compare( "basicawareness" ) == 0 && basicAwarenessProxy_) {
     if (enable) {
       basicAwarenessProxy_->startAwareness();
     }
@@ -1766,13 +1780,13 @@ void PepperProxyManager::setAutonomousAbility( const std::string & ability, bool
       basicAwarenessProxy_->stopAwareness();
     }
   }
-  else if (ability.compare( "autonomousblinking") == 0 && autoblinkingProxy_) {
+  else if (ability.compare( "autonomousblinking" ) == 0 && autoblinkingProxy_) {
     autoblinkingProxy_->call<void>( "setEnabled", enable );
   }
-  else if (ability.compare( "backgroundmovement") == 0 && backgroundMovementProxy_) {
+  else if (ability.compare( "backgroundmovement" ) == 0 && backgroundMovementProxy_) {
     backgroundMovementProxy_->call<void>( "setEnabled", enable );
   }
-  else if (ability.compare( "listeningmovement") == 0 && listenMovementProxy_) {
+  else if (ability.compare( "listeningmovement" ) == 0 && listenMovementProxy_) {
     listenMovementProxy_->call<void>( "setEnabled", enable );
   }
 }
