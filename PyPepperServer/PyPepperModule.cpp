@@ -929,12 +929,26 @@ static PyObject * PyModule_PepperMoveBodyWithRawTrajectoryData( PyObject * self,
   std::vector<std::string> joint_names;
   for (int i = 0; i < listSize; ++i) {
     obj = PyList_GetItem( jointsObj, i );
-    if (!PyString_Check( obj )) {
+    if (PyString_Check( obj )) {
+      joint_names.push_back( PyString_AsString( obj ) );
+    }
+    else if (PyUnicode_Check( obj )) {
+      PyObject * strObj = PyUnicode_AsASCIIString( obj );
+      if (strObj) {
+        joint_names.push_back( PyString_AsString( strObj ) );
+        Py_DECREF( strObj );
+      }
+      else {
+        PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d "
+                    "must be a string that corresponding to a Pepper joint!", i );
+        return NULL;
+      }
+    }
+    else {
       PyErr_Format( PyExc_ValueError, "PyPepper.moveBodyWithRawTrajectoryData: input list item %d "
                    "must be a string that corresponding to a Pepper joint!", i );
       return NULL;
     }
-    joint_names.push_back( PyString_AsString( obj ) );
   }
 
   std::vector< std::vector<AngleControlPoint> > key_frames;
