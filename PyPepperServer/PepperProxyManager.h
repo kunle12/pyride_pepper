@@ -100,6 +100,11 @@ public:
   void pauseAudioID( const int audioID );
   void stopAllAudio();
 
+  bool playVideo( const std::string & url );
+  bool stopVideo();
+  bool pauseVideo();
+  bool resumeVideo();
+
   void setChestLED( const NAOLedColour colour );
   void pulsatingChestLED( const NAOLedColour colour1, const NAOLedColour colour2, const float period = 0.5 );
   void continuePulseChestLED();

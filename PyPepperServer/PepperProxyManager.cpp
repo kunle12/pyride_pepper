@@ -1417,6 +1417,7 @@ void PepperProxyManager::pauseAudioID( const int audioID )
     audioPlayerProxy_->post.pause( audioID );
   }
 }
+
 void PepperProxyManager::stopAllAudio()
 {
   if (!audioCtrl_)
@@ -1425,6 +1426,38 @@ void PepperProxyManager::stopAllAudio()
   if (audioPlayerProxy_) {
     audioPlayerProxy_->post.stopAll();
   }
+}
+
+bool PepperProxyManager::playVideo( const std::string & url )
+{
+  if (tabletProxy_) {
+    return tabletProxy_->call<bool>( "playVideo", url );
+  }
+  return false;
+}
+
+bool PepperProxyManager::stopVideo()
+{
+  if (tabletProxy_) {
+    return tabletProxy_->call<bool>( "stopVideo" );
+  }
+  return false;
+}
+
+bool PepperProxyManager::pauseVideo()
+{
+  if (tabletProxy_) {
+    return tabletProxy_->call<bool>( "pauseVideo" );
+  }
+  return false;
+}
+
+bool PepperProxyManager::resumeVideo()
+{
+  if (tabletProxy_) {
+    return tabletProxy_->call<bool>( "resumeVideo" );
+  }
+  return false;
 }
 
 bool PepperProxyManager::startBehaviour( const std::string & behaviour )

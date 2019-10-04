@@ -1502,6 +1502,79 @@ static PyObject * PyModule_PepperStopAllAudio( PyObject * self )
   Py_RETURN_NONE;
 }
 
+/*! \fn playVideo(url)
+ *  \memberof PyPepper
+ *  \brief Play video file from a URL.
+ *  \param string url. Video URL.
+ *  \return True == successful; False otherwise.
+ */
+static PyObject * PyModule_PepperPlayVideo( PyObject * self, PyObject * args )
+{
+  char * url = NULL;
+
+  if (!PyArg_ParseTuple( args, "s", &url )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+  if (url) {
+    if (PepperProxyManager::instance()->playVideo( url )) {
+      Py_RETURN_TRUE;
+    }
+  }
+  Py_RETURN_FALSE;
+}
+
+/*! \fn stopVideo()
+ *  \memberof PyPepper
+ *  \brief Stop playing video.
+ *  \return True == successful; False otherwise.
+ */
+static PyObject * PyModule_PepperStopVideo( PyObject * self )
+{
+  char * url = NULL;
+
+  if (PepperProxyManager::instance()->stopVideo()) {
+    Py_RETURN_TRUE;
+  }
+  else {
+    Py_RETURN_FALSE;
+  }
+}
+
+/*! \fn pauseVideo()
+ *  \memberof PyPepper
+ *  \brief Pause playing video.
+ *  \return True == successful; False otherwise.
+ */
+static PyObject * PyModule_PepperPauseVideo( PyObject * self )
+{
+  char * url = NULL;
+
+  if (PepperProxyManager::instance()->pauseVideo()) {
+    Py_RETURN_TRUE;
+  }
+  else {
+    Py_RETURN_FALSE;
+  }
+}
+
+/*! \fn resumeVideo()
+ *  \memberof PyPepper
+ *  \brief Resume playing video.
+ *  \return True == successful; False otherwise.
+ */
+static PyObject * PyModule_PepperResumeVideo( PyObject * self )
+{
+  char * url = NULL;
+
+  if (PepperProxyManager::instance()->resumeVideo()) {
+    Py_RETURN_TRUE;
+  }
+  else {
+    Py_RETURN_FALSE;
+  }
+}
+
 /** @name Choregraphe Behaviour Management Functions
  *
  */
@@ -2051,6 +2124,14 @@ static PyMethodDef PyModule_methods[] = {
     "Pause a playing audio file." },
   { "stopAllAudio", (PyCFunction)PyModule_PepperStopAllAudio, METH_NOARGS,
     "Stop playing all audio on Pepper." },
+  { "playVideo", (PyCFunction)PyModule_PepperPlayVideo, METH_VARARGS,
+    "Play a video from a url on Pepper." },
+  { "stopVideo", (PyCFunction)PyModule_PepperStopVideo, METH_NOARGS,
+    "Stop playing video on Pepper." },
+  { "pauseVideo", (PyCFunction)PyModule_PepperPauseVideo, METH_NOARGS,
+    "Pause playing video on Pepper." },
+  { "resumeVideo", (PyCFunction)PyModule_PepperResumeVideo, METH_NOARGS,
+    "Resume playing video on Pepper." },
   { "startBehaviour", (PyCFunction)PyModule_PepperStartBehaviour, METH_VARARGS,
     "Start playing a behaviour on Pepper. Parameter: string name of the behaviour." },
   { "runBehaviour", (PyCFunction)PyModule_PepperRunBehaviour, METH_VARARGS,
