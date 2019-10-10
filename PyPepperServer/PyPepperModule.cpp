@@ -1884,9 +1884,9 @@ static PyObject * PyModule_PepperTurnTabletWiFiOn( PyObject * self, PyObject * a
  *
  */
 /**@{*/
-/*! \fn setChestLED(colour)
+/*! \fn setShoulderLED(colour)
  *  \memberof PyPepper
- *  \brief Set Pepper's chest LED to a colour.
+ *  \brief Set Pepper's shoulder LED to a colour.
  *  \param str colour. Colour must be 'red','green', 'blue', 'white', 'blank', 'yellow' or 'pink'.
  *  \return None.
  */
@@ -1903,16 +1903,16 @@ static PyObject * PyModule_PepperSetChestLED( PyObject * self, PyObject * args )
     PepperProxyManager::instance()->setChestLED( colourID );
   }
   else {
-    PyErr_Format( PyExc_ValueError, "PyPepper.setChestLED: invalid input colour."
+    PyErr_Format( PyExc_ValueError, "PyPepper.setShoulderLED: invalid input colour."
                  "Colour must be 'red','green', 'blue', 'white', 'blank', 'yellow' or 'pink'." );
     return NULL;
   }
   Py_RETURN_NONE;
 }
 
-/*! \fn setFaceLED(colour)
+/*! \fn setEyeLED(colour)
  *  \memberof PyPepper
- *  \brief Set Pepper's face/eye LED to a colour.
+ *  \brief Set Pepper's eye LED to a colour.
  *  \param str colour. Colour must be 'red','green', 'blue', 'white', 'blank', 'yellow' or 'pink'.
  *  \return None.
  */
@@ -1929,14 +1929,14 @@ static PyObject * PyModule_PepperSetFaceLED( PyObject * self, PyObject * args )
     PepperProxyManager::instance()->setFaceLED( colourID );
   }
   else {
-    PyErr_Format( PyExc_ValueError, "PyPepper.setFaceLED: invalid input colour."
+    PyErr_Format( PyExc_ValueError, "PyPepper.setEyeLED: invalid input colour."
                  "Colour must be 'red','green', 'blue', 'white', 'blank', 'yellow' or 'pink'." );
     return NULL;
   }
   Py_RETURN_NONE;
 }
 
-/*! \fn pulseChestLED(colour_one, colour_two, period)
+/*! \fn pulseShoulderLED(colour_one, colour_two, period)
  *  \memberof PyPepper
  *  \brief Periodically switch Pepper's chest LED between the two input colours.
  *  \param str colour_one. Colour label one.
@@ -1959,13 +1959,13 @@ static PyObject * PyModule_PepperPulseChestLED( PyObject * self, PyObject * args
     return NULL;
   }
   if (!colourStr2ID( colourStr1, colourID1 ) || !colourStr2ID( colourStr2, colourID2 )) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.pulseChestLED: invalid input colour(s)."
+    PyErr_Format( PyExc_ValueError, "PyPepper.pulseShoulderLED: invalid input colour(s)."
                  "Colour must be 'red','green', 'blue', 'white', 'blank', 'yellow' or 'pink'." );
     return NULL;
   }
 
   if (period <= 0.0) {
-    PyErr_Format( PyExc_ValueError, "PyPepper.pulseChestLED: invalid pulse period." );
+    PyErr_Format( PyExc_ValueError, "PyPepper.pulseShoulderLED: invalid pulse period." );
     return NULL;
   }
 
@@ -2174,11 +2174,11 @@ static PyMethodDef PyModule_methods[] = {
     "Disconnect Pepper tablet WiFi from the current hotspot." },
   { "turnTabletWiFiOn", (PyCFunction)PyModule_PepperTurnTabletWiFiOn, METH_VARARGS,
     "Turn Pepper tablet WiFi on or off." },
-  { "setChestLED", (PyCFunction)PyModule_PepperSetChestLED, METH_VARARGS,
+  { "setShoulderLED", (PyCFunction)PyModule_PepperSetChestLED, METH_VARARGS,
     "Set the colour of the chest LEDs on Pepper." },
-  { "setFaceLED", (PyCFunction)PyModule_PepperSetFaceLED, METH_VARARGS,
+  { "setEyeLED", (PyCFunction)PyModule_PepperSetFaceLED, METH_VARARGS,
     "Set the colour of the face/eye LEDs on Pepper." },
-  { "pulseChestLED", (PyCFunction)PyModule_PepperPulseChestLED, METH_VARARGS,
+  { "pulseShoulderLED", (PyCFunction)PyModule_PepperPulseChestLED, METH_VARARGS,
     "Pulse the chest LED of Pepper between two colours." },
   { "getBatteryStatus", (PyCFunction)PyModule_PepperGetBatteryStatus, METH_NOARGS,
     "Get the current battery status." },
