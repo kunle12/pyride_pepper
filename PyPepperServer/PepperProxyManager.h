@@ -128,6 +128,7 @@ public:
   void setHeadStiffness( const float stiff );
   void setBodyStiffness( const float stiff );
   void setLegStiffness( const float stiff );
+  void setJointStiffness( const int jointID, const float stiff );
 
   bool moveArmWithJointPos( bool isLeft, const std::vector<float> & positions,
                            float frac_speed = 0.5 );

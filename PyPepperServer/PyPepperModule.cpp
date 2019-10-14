@@ -454,6 +454,24 @@ static PyObject * PyModule_PepperMoveBodyTo( PyObject * self, PyObject * args )
     Py_RETURN_FALSE;
 }
 
+static PyObject * PyModule_PepperUpdateBodyPos( PyObject * self, PyObject * args )
+{
+  float x_pos = 0.0;
+  float y_pos = 0.0;
+  float z_theta = 0.0;
+
+  if (!PyArg_ParseTuple( args, "fff", &x_pos, &y_pos, &z_theta )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+  RobotPose newPose;
+  newPose.x = x_pos;
+  newPose.y = y_pos;
+  newPose.theta = z_theta;
+  PepperProxyManager::instance()->updateBodyPose( newPose );
+  Py_RETURN_NONE;
+}
+
 /*! \fn crouch()
  *  \memberof PyPepper
  *  \brief Move the robot into a crouch pose.
@@ -584,6 +602,37 @@ static PyObject * PyModule_PepperSetLegStiffness( PyObject * self, PyObject * ar
   }
 
   PepperProxyManager::instance()->setLegStiffness( stiff );
+  Py_RETURN_NONE;
+}
+
+static PyObject * PyModule_PepperSetJointStiffness( PyObject * self, PyObject * args )
+{
+  char * joint = NULL;
+  float stiff = 0.0;
+  int jointId = -1;
+
+  if (!PyArg_ParseTuple( args, "sf", &joint, &stiff )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  if (stiff < 0.0 || stiff > 1.0) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.setJointStiffness: the stiffness input must be within the range of [0.0, 1.0]!" );
+    return NULL;
+  }
+  for (int i = 0; i < 17; i++) {
+    if (!strncmp( joint, kBodyKWlist[i], strlen(kBodyKWlist[i]) )) {
+      jointId = i;
+      break;
+    }
+  }
+
+  if (jointId == -1) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.setJointStiffness: invalid joint name %s\n", joint );
+    return NULL;
+  }
+
+  PepperProxyManager::instance()->setJointStiffness( jointId, stiff );
   Py_RETURN_NONE;
 }
 
@@ -2090,10 +2139,14 @@ static PyMethodDef PyModule_methods[] = {
     "Navigate Pepper to a specific position w.r.t the current robot pose. " },
   { "moveBodyTo", (PyCFunction)PyModule_PepperMoveBodyTo, METH_VARARGS,
     "Move Pepper to a specific position w.r.t the current robot pose. " },
+  { "updateBodyPos", (PyCFunction)PyModule_PepperUpdateBodyPos, METH_VARARGS,
+    "Change Pepper body position in (x, y, theta) format." },
   { "setArmStiffness", (PyCFunction)PyModule_PepperSetArmStiffness, METH_VARARGS,
-    "Set the stiffness of the one of Pepper's arms. " },
+    "Set the stiffness of the one of Pepper's arms." },
   { "setLegStiffness", (PyCFunction)PyModule_PepperSetLegStiffness, METH_VARARGS,
-     "Set the stiffness of the one of Pepper's legs. " },
+     "Set the stiffness of the one of Pepper's legs." },
+  { "setJointStiffness", (PyCFunction)PyModule_PepperSetJointStiffness, METH_VARARGS,
+     "Set the stiffness of a specific Pepper joint." },
   { "moveArmWithJointPos", (PyCFunction)PyModule_PepperMoveArmWithJointPos, METH_VARARGS|METH_KEYWORDS,
     "Move one of Pepper arms with specific joint positions." },
   { "moveArmWithJointTrajectory", (PyCFunction)PyModule_PepperMoveArmWithJointTraj, METH_VARARGS,

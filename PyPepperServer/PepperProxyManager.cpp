@@ -497,6 +497,17 @@ void PepperProxyManager::setBodyStiffness( const float stiff )
   }
 }
 
+void PepperProxyManager::setJointStiffness( const int jointID, const float stiff )
+{
+  if (jointID < 0 || jointID > kPepperJointNo) {
+    return;
+  }
+  if (motionProxy_ && stiff >= 0.0 && stiff <= 1.0) {
+    AL::ALValue names = kPepperBodyJoints[jointID];
+    motionProxy_->setStiffnesses( names, stiff );
+  }
+}
+
 void PepperProxyManager::stand( bool init )
 {
   if (postureProxy_) {
