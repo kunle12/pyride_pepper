@@ -669,6 +669,26 @@ void PepperProxyManager::getLowerBodyJointsPos( std::vector<float> & positions,
   }
 }
 
+bool PepperProxyManager::getJointRawData( const int jointID, float & value )
+{
+  if (jointID < 0 || jointID > kPepperJointNo) {
+    return false;
+  }
+  if (motionProxy_) {
+    std::string memory_key = "Motion/Position/Sensor/";
+    memory_key += kPepperBodyJoints[jointID];
+    float data = 0.0;
+    try {
+      data = memoryProxy_->getData( memory_key );
+    }
+    catch (...) {
+      return false;
+    }
+    value = data;
+    return true;
+  }
+}
+
 void PepperProxyManager::setArmStiffness( bool isLeft, const float stiff )
 {
   if (motionProxy_ && stiff >= 0.0 && stiff <= 1.0) {

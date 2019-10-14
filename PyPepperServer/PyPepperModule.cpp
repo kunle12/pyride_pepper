@@ -636,6 +636,39 @@ static PyObject * PyModule_PepperSetJointStiffness( PyObject * self, PyObject * 
   Py_RETURN_NONE;
 }
 
+static PyObject * PyModule_PepperGetJointRawData( PyObject * self, PyObject * args )
+{
+  char * joint = NULL;
+  int jointId = -1;
+
+  if (!PyArg_ParseTuple( args, "s", &joint )) {
+    // PyArg_ParseTuple will set the error status.
+    return NULL;
+  }
+
+  for (int i = 0; i < 17; i++) {
+    if (!strncmp( joint, kBodyKWlist[i], strlen(kBodyKWlist[i]) )) {
+      jointId = i;
+      break;
+    }
+  }
+
+  if (jointId == -1) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.getJointRawData: invalid joint name %s\n", joint );
+    return NULL;
+  }
+
+  float value = 0.0;
+
+  if (PepperProxyManager::instance()->getJointRawData( jointId, value )) {
+    return Py_BuildValue( "f", value );
+  }
+  else {
+    PyErr_Format( PyExc_ValueError, "PyPepper.getJointRawData: internal error for joint %s\n", joint );
+    return NULL;
+  }
+}
+
 /*! \fn moveArmWithJointTrajectory(joint_trajectory)
  *  \memberof PyPepper
  *  \brief Move a Pepper arm to a sequence of joint positions, i.e. trajectory.
@@ -2165,6 +2198,8 @@ static PyMethodDef PyModule_methods[] = {
     "Get joint positions of Pepper's torso." },
   { "getBodyJointPositions", (PyCFunction)PyModule_PepperGetBodyJointPositions, METH_VARARGS,
     "Get full joint positions of Pepper." },
+  { "getJointRawData", (PyCFunction)PyModule_PepperGetJointRawData, METH_VARARGS,
+    "Get raw data of a specific Pepper joint." },
   { "setAutonomousAbility", (PyCFunction)PyModule_PepperSetAutonomousAbility, METH_VARARGS,
      "Set the autonomous ability of the Pepper. " },
   { "openHand", (PyCFunction)PyModule_PepperOpenHand, METH_VARARGS,

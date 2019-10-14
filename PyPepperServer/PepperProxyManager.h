@@ -124,6 +124,8 @@ public:
   void getLowerBodyJointsPos( std::vector<float> & positions,
                        bool useSensor = false );
 
+  bool getJointRawData( const int jointID, float & value );
+
   void setArmStiffness( bool isLeft, const float stiff );
   void setHeadStiffness( const float stiff );
   void setBodyStiffness( const float stiff );
