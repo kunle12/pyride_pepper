@@ -206,13 +206,7 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
     postureProxy_.reset();
   }
   if (postureProxy_) {
-    postureProxy_->goToPosture( "Stand", 0.6 );
-    /*
-    if (motionProxy_) {
-      motionProxy_->rest();
-    }
-    */
-    INFO_MSG( "Pepper Robot Posture is successfully initialised.\n" );
+    INFO_MSG( "Pepper robot posture is successfully initialised.\n" );
   }
 
   try {
@@ -687,6 +681,7 @@ bool PepperProxyManager::getJointRawData( const int jointID, float & value )
     value = data;
     return true;
   }
+  return false;
 }
 
 void PepperProxyManager::setArmStiffness( bool isLeft, const float stiff )
