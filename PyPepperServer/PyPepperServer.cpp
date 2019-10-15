@@ -919,7 +919,7 @@ void PyPepperServer::onBatteryNearlyEmpty()
  *  \memberof PyPepper.
  *  \brief Callback function when the Pepper battery status has changed.
  *  \param int bat_percent. The remaining battery percentage within [0..100].
- *  \param bool is_discharging. True == the battery is discharging, False == the batter is charging.
+ *  \param bool is_charging. True == the battery is charging, False == the batter is charging.
   *  \return None.
  */
 void PyPepperServer::onBatteryChargeChanged()
@@ -927,14 +927,14 @@ void PyPepperServer::onBatteryChargeChanged()
   ALCriticalSection section( callbackMutex_ );
 
   int batpercent =  memoryProxy_->getData( "BatteryChargeChanged" );
-  bool discharging = memoryProxy_->getData( "BatteryDisChargingFlagChanged" );
+  bool ischarging = memoryProxy_->getData( "BatteryChargingFlagChanged" );
 
   PyObject * arg = NULL;
 
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();
 
-  arg = Py_BuildValue( "(iO)", batpercent, discharging ? Py_True : Py_False );
+  arg = Py_BuildValue( "(iO)", batpercent, ischarging ? Py_True : Py_False );
 
   PyPepperModule::instance()->invokeCallback( "onBatteryChargeChange", arg );
 
