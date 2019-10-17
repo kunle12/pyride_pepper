@@ -1193,7 +1193,12 @@ void PepperProxyManager::blockedBodyMoveWithData( const std::vector<std::string>
   try {
     motionProxy_->setStiffnesses( "Body", 1.0 );
 
-    motionProxy_->angleInterpolationBezier( joint_names, times, keys );
+    if (isBezier) {
+      motionProxy_->angleInterpolationBezier( joint_names, times, keys );
+    }
+    else {
+      motionProxy_->angleInterpolation( joint_names, times, keys, true );
+    }
   }
   catch (...) {
     ERROR_MSG( "Unable to move joints in specified raw trajectories." );
