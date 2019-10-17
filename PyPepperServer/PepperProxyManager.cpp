@@ -1197,7 +1197,7 @@ void PepperProxyManager::blockedBodyMoveWithData( const std::vector<std::string>
       motionProxy_->angleInterpolationBezier( joint_names, times, keys );
     }
     else {
-      motionProxy_->angleInterpolation( joint_names, times, keys, true );
+      motionProxy_->angleInterpolation( joint_names, keys, times, true );
     }
   }
   catch (...) {
