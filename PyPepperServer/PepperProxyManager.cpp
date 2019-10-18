@@ -53,6 +53,7 @@ void * timeout_thread( void * controller )
 }
 
 PepperProxyManager::PepperProxyManager() :
+  isRunning_( false ),
   moveInitialised_( false ),
   isChestLEDPulsating_( false ),
   speechCtrl_( false ),
@@ -75,7 +76,8 @@ PepperProxyManager::PepperProxyManager() :
   bodymoveThread_( NULL ),
   legmoveThread_( NULL ),
   behaviourThread_( NULL ),
-  audioThread_( NULL )
+  audioThread_( NULL ),
+  updateHeadThread_( NULL )
 {
   pthread_mutexattr_init( &t_mta );
   pthread_mutexattr_settype( &t_mta, PTHREAD_MUTEX_RECURSIVE );
@@ -284,6 +286,11 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
   if (tabletProxy_) {
     INFO_MSG( "Pepper tablet service is successfully initialised.\n" );
   }
+
+  newUpdatedHeadPos_.arraySetSize( 2 );
+  newUpdatedHeadSpeed_ = 0.0;
+  isRunning_ = true;
+  updateHeadThread_ = new boost::thread( &PepperProxyManager::continousHeadControl, this );
 }
 
 void PepperProxyManager::setSpeechParameter( const std::string & param, float value )
@@ -440,14 +447,12 @@ void PepperProxyManager::blockedHeadMove( const float yaw, const float pitch, bo
 
 void PepperProxyManager::updateHeadPos( const float yaw, const float pitch, const float speed )
 {
+  AL::ALValue names = "Head";
+
   if (motionProxy_) {
-    AL::ALValue names = "Head";
-    AL::ALValue newHeadPos;
     // AL::ALValue stiff = 1.0f;
     float yaw_value = 0.0;
     float pitch_value = 0.0;
-
-    newHeadPos.arraySetSize( 2 );
 
     std::vector<float> curHeadPos;
     //motionProxy_->setStiffnesses( names, stiff );
@@ -457,20 +462,46 @@ void PepperProxyManager::updateHeadPos( const float yaw, const float pitch, cons
     yaw_value = clamp_change( yaw, curHeadPos.at( 0 ), HEAD_YAW );
     pitch_value = clamp_change( pitch, curHeadPos.at( 1 ), HEAD_PITCH );
 
-    newHeadPos[0] = yaw_value / 2.0;
-    newHeadPos[1] = pitch_value / 2.0;
+    {
+      boost::mutex::scoped_lock lock( h_mutex_, boost::try_to_lock );
+      if (lock) {
+        newUpdatedHeadPos_[0] = yaw_value / 2.0;
+        newUpdatedHeadPos_[1] = pitch_value / 2.0;
+        newUpdatedHeadSpeed_ = (speed > 1.0 || speed < 0.0 ) ? 0.1 : speed; // default to 0.1
+        headCon_.notify_one();
+      }      
+    }
+  }
+}
 
-    float myspeed = (speed > 1.0 || speed < 0.0 ) ? 0.1 : speed; // default to 0.1
+void PepperProxyManager::continousHeadControl()
+{
+  AL::ALValue names = "Head";
+  AL::ALValue posData;
+  float speedData = 0.0;
+
+  while (isRunning_) {
+    {
+      boost::mutex::scoped_lock lock( h_mutex_ );
+      if (newUpdatedHeadSpeed_ <= 0.0) {
+        headCon_.wait( lock );
+        continue;
+      }
+      posData = newUpdatedHeadPos_;
+      speedData = newUpdatedHeadSpeed_;
+      newUpdatedHeadSpeed_ = 0.0;
+    }
+
     try {
       // HACK assuming input frequency is 10Hz and 3x commands
-      motionProxy_->changeAngles( names, newHeadPos, myspeed );
+      motionProxy_->changeAngles( names, posData, speedData );
       usleep( 33000 );
-      motionProxy_->changeAngles( names, newHeadPos, myspeed );
+      motionProxy_->changeAngles( names, posData, speedData );
       usleep( 33000 );
-      motionProxy_->changeAngles( names, newHeadPos, myspeed );
+      motionProxy_->changeAngles( names, posData, speedData );
     }
     catch (...) {
-      ERROR_MSG( "Unable to change angles to %s", newHeadPos.toString().c_str() );
+      ERROR_MSG( "Unable to change angles to %s", posData.toString().c_str() );
     }
   }
 }
@@ -1885,6 +1916,11 @@ void PepperProxyManager::fini()
     isChestLEDPulsating_ = false;
     pthread_join( runningThread_, NULL );
   }
+  
+  // stop the continuous head control thread
+  isRunning_ = false;
+  headCon_.notify_one();
+
   if (speechProxy_) {
     speechProxy_.reset();
   }

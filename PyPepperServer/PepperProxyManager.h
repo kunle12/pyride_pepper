@@ -12,6 +12,7 @@
 #include <string>
 #include <pthread.h>
 #include <boost/shared_ptr.hpp>
+#include <boost/thread/mutex.hpp>
 
 #include <alerror/alerror.h>
 #include <alcommon/albroker.h>
@@ -195,28 +196,6 @@ public:
 
   void fini();
 
-  void blockedSpeech( const std::string & text, bool toAnimate );
-  void blockedHeadMove( const float yaw, const float pitch, bool relative, float frac_speed );
-  void blockedArmMove( bool isLeftArm, const std::vector<float> & positions, float frac_speed );
-  void blockedArmMoveTraj( bool isLeftArm,
-                           const std::vector< std::vector<float> > & trajectory,
-                           const std::vector<float> & times_to_reach );
-
-  void blockedLowerBodyMove( const std::vector<float> & positions, float frac_speed );
-  void blockedLowerBodyMoveTraj( const std::vector< std::vector<float> > & trajectory,
-                                 const std::vector<float> & times_to_reach );
-
-  void blockedBodyMoveWithData( const std::vector<std::string> & joint_names,
-                                const std::vector< std::vector<AngleControlPoint> > & key_frames,
-                                const std::vector< std::vector<float> > & time_stamps, bool isBezier );
-  void blockedBodyMoveTo( const RobotPose & pose, float duration );
-
-  void blockedHandMove( bool isLeft, float openRatio, bool keepStiff );
-
-  void blockedBehaviourRun( const std::string & behaviour );
-
-  void blockedPlayAudio( const int audioID );
-
 private:
   static PepperProxyManager * s_pPepperProxyManager;
 
@@ -249,12 +228,16 @@ private:
   boost::thread * legmoveThread_;
   boost::thread * behaviourThread_;
   boost::thread * audioThread_;
+  boost::thread * updateHeadThread_;
 
   //motion related data
   ALValue jointLimits_;
+  ALValue newUpdatedHeadPos_;
+  float newUpdatedHeadSpeed_;
 
   struct timeval cmdTimeStamp_;
 
+  bool isRunning_;
   bool moveInitialised_;
   bool isChestLEDPulsating_;
   bool speechCtrl_;
@@ -274,12 +257,38 @@ private:
   pthread_mutex_t t_mutex_;
   pthread_mutexattr_t t_mta;
 
+  boost::mutex h_mutex_;
+  boost::condition_variable headCon_;
+
   PepperProxyManager();
+
+  void blockedSpeech( const std::string & text, bool toAnimate );
+  void blockedHeadMove( const float yaw, const float pitch, bool relative, float frac_speed );
+  void blockedArmMove( bool isLeftArm, const std::vector<float> & positions, float frac_speed );
+  void blockedArmMoveTraj( bool isLeftArm,
+                           const std::vector< std::vector<float> > & trajectory,
+                           const std::vector<float> & times_to_reach );
+
+  void blockedLowerBodyMove( const std::vector<float> & positions, float frac_speed );
+  void blockedLowerBodyMoveTraj( const std::vector< std::vector<float> > & trajectory,
+                                 const std::vector<float> & times_to_reach );
+
+  void blockedBodyMoveWithData( const std::vector<std::string> & joint_names,
+                                const std::vector< std::vector<AngleControlPoint> > & key_frames,
+                                const std::vector< std::vector<float> > & time_stamps, bool isBezier );
+  void blockedBodyMoveTo( const RobotPose & pose, float duration );
+
+  void blockedHandMove( bool isLeft, float openRatio, bool keepStiff );
+
+  void blockedBehaviourRun( const std::string & behaviour );
+
+  void blockedPlayAudio( const int audioID );
+
+  void continousHeadControl();
 
   float clamp( float val, int jointInd );
   float clamp_change( float chg, float val, int jointInd );
   int colour2Hex( const NAOLedColour colour );
-
 };
 } // namespace pyride
 #endif // PepperProxyManager_h_DEFINED
