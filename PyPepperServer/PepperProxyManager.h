@@ -132,6 +132,7 @@ public:
   void setBodyStiffness( const float stiff );
   void setLegStiffness( const float stiff );
   void setJointStiffness( const int jointID, const float stiff );
+  bool setHeadRangeLimits( std::vector<float> & limits );
 
   bool moveArmWithJointPos( bool isLeft, const std::vector<float> & positions,
                            float frac_speed = 0.5 );
@@ -222,6 +223,7 @@ private:
 
   //motion related data
   ALValue jointLimits_;
+  ALValue origHeadLimits_;
   ALValue newUpdatedHeadPos_;
   float newUpdatedHeadSpeed_;
 

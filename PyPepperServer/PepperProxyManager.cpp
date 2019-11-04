@@ -167,10 +167,10 @@ void PepperProxyManager::initWithBroker( boost::shared_ptr<ALBroker> broker, boo
   }
   if (motionProxy_) {
     moveInitialised_ = false;
-    AL::ALValue joints; // make sure we get joint limits in correct order
+    origHeadLimits_.arraySetSize( 2 );
     jointLimits_.arraySetSize( 17 );
-    jointLimits_[0] = motionProxy_->getLimits( "HeadYaw" )[0];
-    jointLimits_[1] = motionProxy_->getLimits( "HeadPitch" )[0];
+    origHeadLimits_[0] = jointLimits_[0] = motionProxy_->getLimits( "HeadYaw" )[0];
+    origHeadLimits_[1] = jointLimits_[1] = motionProxy_->getLimits( "HeadPitch" )[0];
     jointLimits_[2] = motionProxy_->getLimits( "LShoulderPitch" )[0];
     jointLimits_[3] = motionProxy_->getLimits( "LShoulderRoll" )[0];
     jointLimits_[4] = motionProxy_->getLimits( "LElbowYaw" )[0];
@@ -481,6 +481,47 @@ void PepperProxyManager::setHeadStiffness( const float stiff )
     AL::ALValue names = "Head";
     motionProxy_->setStiffnesses( names, stiff );
   }
+}
+
+bool PepperProxyManager::setHeadRangeLimits( std::vector<float> & limits )
+{
+  /* assuming inputs is in head yaw min, head yaw max, head pitch min and head pitch max */
+  if (limits.size() != 4) {
+    ERROR_MSG( "Invalid head range limits." );
+    return false;
+  }
+  if ((limits[0] < (float)origHeadLimits_[HEAD_YAW][0]) ||
+      (limits[1] > (float)origHeadLimits_[HEAD_YAW][1]))
+  {
+    ERROR_MSG( "Invalid head yaw limits." );
+    return false;
+  }
+  if ((limits[2] < (float)origHeadLimits_[HEAD_PITCH][0]) ||
+      (limits[3] > (float)origHeadLimits_[HEAD_PITCH][1]))
+  {
+    ERROR_MSG( "Invalid head pitch limits." );
+    return false;
+  }
+  if (limits[0] == 0 && limits[1] == 0) {
+    /* restore to the original value */
+    jointLimits_[HEAD_YAW][0] = origHeadLimits_[HEAD_YAW][0];
+    jointLimits_[HEAD_YAW][1] = origHeadLimits_[HEAD_YAW][1];
+  }
+  else {
+    jointLimits_[HEAD_YAW][0] = limits[0];
+    jointLimits_[HEAD_YAW][1] = limits[1];
+  }
+  if (limits[2] == 0 && limits[3] == 0) {
+    /* restore to the original value */
+    jointLimits_[HEAD_PITCH][0] = origHeadLimits_[HEAD_PITCH][0];
+    jointLimits_[HEAD_PITCH][1] = origHeadLimits_[HEAD_PITCH][1];
+  }
+  else {
+    jointLimits_[HEAD_PITCH][0] = limits[2];
+    jointLimits_[HEAD_PITCH][1] = limits[3];
+  }
+
+  return true;
 }
 
 void PepperProxyManager::setBodyStiffness( const float stiff )

@@ -43,6 +43,9 @@ static const char *kBodyKWlist[] = { "head_yaw_joint", "head_pitch_joint",
   "r_elbow_roll_joint", "r_wrist_yaw_joint", "r_hand_joint",
   "frac_max_speed", NULL };
 
+static const char *kHeadRangeKWlist[] = { "head_yaw_max", "head_yaw_min", "head_pitch_max",
+    "head_pitch_min", NULL };
+
 // helper function
 
 static bool colourStr2ID( const char * colourStr, NAOLedColour & colourID )
@@ -524,6 +527,39 @@ static PyObject * PyModule_PepperSetHeadStiffness( PyObject * self, PyObject * a
 
   PepperProxyManager::instance()->setHeadStiffness( stiff );
   Py_RETURN_NONE;
+}
+
+/*! \fn setHeadJointLimits(limits)
+ *  \memberof PyPepper
+ *  \brief Set the Pepper head yaw and pitch limits
+ *  \param dict limits. A dictionary contains head_yaw_max, head_yaw_min, head_pitch_max, head_pitch_min
+ *  \return bool. True == valid command; False == invalid command.
+ *  \note set all values to zero to reset limits to their original factory default values.
+ */
+static PyObject * PyModule_PepperSetHeadJointLimits( PyObject * self, PyObject * args, PyObject * keywds )
+{
+  float yaw_max, yaw_min, pitch_max, pitch_min;
+
+  if (!PyArg_ParseTupleAndKeywords( args, keywds, "ffff", (char**)kHeadRangeKWlist,
+                                  &yaw_max, &yaw_min, &pitch_max, &pitch_min ))
+  {
+    return NULL; 
+  }
+  if (yaw_max < yaw_min || pitch_max < pitch_min) {
+    PyErr_Format( PyExc_ValueError, "PyPepper.setHeadJointLimits: max is smaller than min" );
+    return NULL; 
+  }
+  std::vector<float> joint_limits( 4, 0.0 );
+  joint_limits[0] = yaw_min;
+  joint_limits[1] = yaw_max;
+  joint_limits[2] = pitch_min;
+  joint_limits[3] = pitch_max;
+
+  if (PepperProxyManager::instance()->setHeadRangeLimits( joint_limits ))
+    Py_RETURN_TRUE;
+  else
+    Py_RETURN_FALSE;
+
 }
 
 /*! \fn setBodyStiffness(stiffness)
@@ -2158,6 +2194,8 @@ static PyMethodDef PyModule_methods[] = {
     "Get Pepper's head position." },
   { "setHeadStiffness", (PyCFunction)PyModule_PepperSetHeadStiffness, METH_VARARGS,
     "Set the stiffness of the Pepper's head. " },
+  { "setHeadJointLimits", (PyCFunction)PyModule_PepperSetHeadJointLimits, METH_VARARGS|METH_KEYWORDS,
+    "Set Pepper head yaw and pitch joint limits. " },
   { "setBodyStiffness", (PyCFunction)PyModule_PepperSetBodyStiffness, METH_VARARGS,
     "Set the stiffness of the Pepper's body. " },
   { "gotoStation", (PyCFunction)PyModule_PepperGotoStation, METH_NOARGS,
