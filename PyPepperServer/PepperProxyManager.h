@@ -218,16 +218,6 @@ private:
   boost::shared_ptr<ALProxy> listenMovementProxy_;
   boost::shared_ptr<ALProxy> tabletProxy_;
 
-  boost::thread * speechThread_;
-  boost::thread * headmoveThread_;
-  boost::thread * larmmoveThread_;
-  boost::thread * rarmmoveThread_;
-  boost::thread * lhandmoveThread_;
-  boost::thread * rhandmoveThread_;
-  boost::thread * bodymoveThread_;
-  boost::thread * legmoveThread_;
-  boost::thread * behaviourThread_;
-  boost::thread * audioThread_;
   boost::thread * updateHeadThread_;
 
   //motion related data

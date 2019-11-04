@@ -67,16 +67,6 @@ PepperProxyManager::PepperProxyManager() :
   audioCtrl_( false ),
   runningThread_( (pthread_t)NULL ),
   timeoutThread_( (pthread_t)NULL ),
-  speechThread_( NULL ),
-  headmoveThread_( NULL ),
-  larmmoveThread_( NULL ),
-  rarmmoveThread_( NULL ),
-  lhandmoveThread_( NULL ),
-  rhandmoveThread_( NULL ),
-  bodymoveThread_( NULL ),
-  legmoveThread_( NULL ),
-  behaviourThread_( NULL ),
-  audioThread_( NULL ),
   updateHeadThread_( NULL )
 {
   pthread_mutexattr_init( &t_mta );
@@ -321,18 +311,10 @@ bool PepperProxyManager::say( const std::string & text, bool toAnimate )
     return false;
   }
 
-  if (speechThread_ && speechThread_->get_id() != boost::this_thread::get_id()) {
-    ERROR_MSG( "speech is in progress.\n" );
-    return false;
-  }
   speechCtrl_ = true;
 
-  if (speechThread_) { // we already in the thread
-    blockedSpeech( text, toAnimate );
-  }
-  else {
-    speechThread_ = new boost::thread( &PepperProxyManager::blockedSpeech, this, text, toAnimate );
-  }
+  boost::thread speech_thread = boost::thread( &PepperProxyManager::blockedSpeech, this, text, toAnimate );
+  speech_thread.detach();
 
   return true;
 }
@@ -362,9 +344,6 @@ void PepperProxyManager::blockedSpeech( const std::string & text, bool toAnimate
   PyGILState_Release( gstate );
 
   //DEBUG_MSG( "done speech.\n" );
-
-  delete speechThread_;
-  speechThread_ = NULL;
 }
 
 bool PepperProxyManager::getHeadPos( float & yaw, float & pitch )
@@ -384,18 +363,11 @@ bool PepperProxyManager::moveHeadTo( const float yaw, const float pitch, bool re
   if (!motionProxy_ || headCtrl_)
     return false;
 
-  if (headmoveThread_ && headmoveThread_->get_id() != boost::this_thread::get_id()) {
-    ERROR_MSG( "head movement is in progress.\n" );
-    return false;
-  }
-
   headCtrl_ = true;
-  if (headmoveThread_) { // we already in the thread
-    blockedHeadMove( yaw, pitch, relative, frac_speed );
-  }
-  else {
-    headmoveThread_ = new boost::thread( &PepperProxyManager::blockedHeadMove, this, yaw, pitch, relative, frac_speed );
-  }
+  
+  boost::thread headmove_thread = boost::thread( &PepperProxyManager::blockedHeadMove, this, yaw, pitch, relative, frac_speed );
+  headmove_thread.detach();
+
   return true;
 }
 
@@ -440,9 +412,6 @@ void PepperProxyManager::blockedHeadMove( const float yaw, const float pitch, bo
   PyGILState_Release( gstate );
 
   //DEBUG_MSG( "done head movement.\n" );
-
-  delete headmoveThread_;
-  headmoveThread_ = NULL;
 }
 
 void PepperProxyManager::updateHeadPos( const float yaw, const float pitch, const float speed )
@@ -558,11 +527,6 @@ bool PepperProxyManager::moveBodyTo( const RobotPose & pose, float duration, boo
   if (motionProxy_->moveIsActive()) {
     if (cancelPreviousMove) {
       motionProxy_->stopMove();
-      if (bodymoveThread_) {
-        bodymoveThread_->join();
-        delete bodymoveThread_;
-        bodymoveThread_ = NULL;
-      }
     }
     else {
       ERROR_MSG( "Unable to issue new work command, robot is moving." );
@@ -571,12 +535,8 @@ bool PepperProxyManager::moveBodyTo( const RobotPose & pose, float duration, boo
   }
   bodyCtrl_ = true;
 
-  if (bodymoveThread_) { // we already in the thread
-    blockedBodyMoveTo( pose, duration );
-  }
-  else {
-    bodymoveThread_ = new boost::thread( &PepperProxyManager::blockedBodyMoveTo, this, pose, duration );
-  }
+  boost::thread bodymove_thread = boost::thread( &PepperProxyManager::blockedBodyMoveTo, this, pose, duration );
+  bodymove_thread.detach();
 
   return true;
 }
@@ -607,20 +567,12 @@ void PepperProxyManager::blockedBodyMoveTo( const RobotPose & pose, const float 
   PyGILState_Release( gstate );
 
   //DEBUG_MSG( "done body movement.\n" );
-
-  delete bodymoveThread_;
-  bodymoveThread_ = NULL;
 }
 
 void PepperProxyManager::cancelBodyMovement()
 {
   if (motionProxy_ && motionProxy_->moveIsActive()) {
     motionProxy_->stopMove();
-    if (bodymoveThread_) {
-      bodymoveThread_->join();
-      delete bodymoveThread_;
-      bodymoveThread_ = NULL;
-    }
   }
 }
 
@@ -740,20 +692,10 @@ bool PepperProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<
   if (isLeftArm) {
     if (lArmCtrl_)
       return false;
-
-    if (larmmoveThread_ && larmmoveThread_->get_id() != boost::this_thread::get_id()) {
-      ERROR_MSG( "left arm movement is in progress.\n" );
-      return false;
-    }
   }
   else {
     if (rArmCtrl_)
       return false;
-
-    if (rarmmoveThread_ && rarmmoveThread_->get_id() != boost::this_thread::get_id()) {
-      ERROR_MSG( "right arm movement is in progress.\n" );
-      return false;
-    }
   }
 
   if (positions.size() != 5)
@@ -762,22 +704,14 @@ bool PepperProxyManager::moveArmWithJointPos( bool isLeftArm, const std::vector<
   if (isLeftArm) {
     lArmCtrl_ = true;
 
-    if (larmmoveThread_) { // we already in the thread
-      blockedArmMove( isLeftArm, positions, frac_speed );
-    }
-    else {
-      larmmoveThread_ = new boost::thread( &PepperProxyManager::blockedArmMove, this, isLeftArm, positions, frac_speed );
-    }
+    boost::thread larmmove_thread = boost::thread( &PepperProxyManager::blockedArmMove, this, isLeftArm, positions, frac_speed );
+    larmmove_thread.detach();
   }
   else {
     rArmCtrl_ = true;
 
-    if (rarmmoveThread_) { // we already in the thread
-      blockedArmMove( isLeftArm, positions, frac_speed );
-    }
-    else {
-      rarmmoveThread_ = new boost::thread( &PepperProxyManager::blockedArmMove, this, isLeftArm, positions, frac_speed );
-    }
+    boost::thread rarmmove_thread = boost::thread( &PepperProxyManager::blockedArmMove, this, isLeftArm, positions, frac_speed );
+    rarmmove_thread.detach();
   }
 
   return true;
@@ -836,14 +770,6 @@ void PepperProxyManager::blockedArmMove( bool isLeftArm, const std::vector<float
   PyGILState_Release( gstate );
 
   //DEBUG_MSG( "done arm movement.\n" );
-  if (isLeftArm) {
-    delete larmmoveThread_;
-    larmmoveThread_ = NULL;
-  }
-  else {
-    delete rarmmoveThread_;
-    rarmmoveThread_ = NULL;
-  }
 }
 
 bool PepperProxyManager::moveArmWithJointTrajectory( bool isLeftArm,
@@ -856,20 +782,10 @@ bool PepperProxyManager::moveArmWithJointTrajectory( bool isLeftArm,
   if (isLeftArm) {
     if (lArmCtrl_)
       return false;
-
-    if (larmmoveThread_ && larmmoveThread_->get_id() != boost::this_thread::get_id()) {
-      ERROR_MSG( "left arm movement is in progress.\n" );
-      return false;
-    }
   }
   else {
     if (rArmCtrl_)
       return false;
-
-    if (rarmmoveThread_ && rarmmoveThread_->get_id() != boost::this_thread::get_id()) {
-      ERROR_MSG( "right arm movement is in progress.\n" );
-      return false;
-    }
   }
 
   size_t traj_size = trajectory.size();
@@ -880,22 +796,14 @@ bool PepperProxyManager::moveArmWithJointTrajectory( bool isLeftArm,
   if (isLeftArm) {
     lArmCtrl_ = true;
 
-    if (larmmoveThread_) { // we already in the thread
-      blockedArmMoveTraj( isLeftArm, trajectory, times_to_reach );
-    }
-    else {
-      larmmoveThread_ = new boost::thread( &PepperProxyManager::blockedArmMoveTraj, this, isLeftArm, trajectory, times_to_reach );
-    }
+    boost::thread larmmove_thread = boost::thread( &PepperProxyManager::blockedArmMoveTraj, this, isLeftArm, trajectory, times_to_reach );
+    larmmove_thread.detach();
   }
   else {
     rArmCtrl_ = true;
 
-    if (rarmmoveThread_) { // we already in the thread
-      blockedArmMoveTraj( isLeftArm, trajectory, times_to_reach );
-    }
-    else {
-      rarmmoveThread_ = new boost::thread( &PepperProxyManager::blockedArmMoveTraj, this, isLeftArm, trajectory, times_to_reach );
-    }
+    boost::thread rarmmove_thread = boost::thread( &PepperProxyManager::blockedArmMoveTraj, this, isLeftArm, trajectory, times_to_reach );
+    rarmmove_thread.detach();
   }
 
   return true;
@@ -973,14 +881,6 @@ void PepperProxyManager::blockedArmMoveTraj( bool isLeftArm,
   PyGILState_Release( gstate );
 
   //DEBUG_MSG( "done arm movement.\n" );
-  if (isLeftArm) {
-    delete larmmoveThread_;
-    larmmoveThread_ = NULL;
-  }
-  else {
-    delete rarmmoveThread_;
-    rarmmoveThread_ = NULL;
-  }
 }
 
 bool PepperProxyManager::moveLowerBodyWithJointPos( const std::vector<float> & positions, float frac_speed )
@@ -992,19 +892,10 @@ bool PepperProxyManager::moveLowerBodyWithJointPos( const std::vector<float> & p
     return false;
   }
 
-  if (legmoveThread_ && legmoveThread_->get_id() != boost::this_thread::get_id()) {
-    ERROR_MSG( "lower body movement is in progress.\n" );
-    return false;
-  }
-
   bodyCtrl_ = true;
 
-  if (legmoveThread_) { // we already in the thread
-    blockedLowerBodyMove( positions, frac_speed );
-  }
-  else {
-    legmoveThread_ = new boost::thread( &PepperProxyManager::blockedLowerBodyMove, this, positions, frac_speed );
-  }
+  boost::thread legmove_thread = boost::thread( &PepperProxyManager::blockedLowerBodyMove, this, positions, frac_speed );
+  legmove_thread.detach();
 
   return true;
 }
@@ -1040,8 +931,6 @@ void PepperProxyManager::blockedLowerBodyMove( const std::vector<float> & positi
   PyGILState_Release( gstate );
 
   //DEBUG_MSG( "done lower body movement.\n" );
-  delete legmoveThread_;
-  legmoveThread_ = NULL;
 }
 
 bool PepperProxyManager::moveLowerBodyWithJointTrajectory( const std::vector< std::vector<float> > & trajectory,
@@ -1055,19 +944,10 @@ bool PepperProxyManager::moveLowerBodyWithJointTrajectory( const std::vector< st
   if (traj_size <= 0 || traj_size != times_to_reach.size())
     return false;
 
-  if (legmoveThread_ && legmoveThread_->get_id() != boost::this_thread::get_id()) {
-    ERROR_MSG( "lower body movement is in progress.\n" );
-    return false;
-  }
-
   bodyCtrl_ = true;
 
-  if (legmoveThread_) { // we already in the thread
-    blockedLowerBodyMoveTraj( trajectory, times_to_reach );
-  }
-  else {
-    legmoveThread_ = new boost::thread( &PepperProxyManager::blockedLowerBodyMoveTraj, this, trajectory, times_to_reach );
-  }
+  boost::thread legmove_thread = boost::thread( &PepperProxyManager::blockedLowerBodyMoveTraj, this, trajectory, times_to_reach );
+  legmove_thread.detach();
 
   return true;
 }
@@ -1125,8 +1005,6 @@ void PepperProxyManager::blockedLowerBodyMoveTraj( const std::vector< std::vecto
   PyGILState_Release( gstate );
 
   //DEBUG_MSG( "done lower body movement.\n" );
-  delete legmoveThread_;
-  legmoveThread_ = NULL;
 }
 
 bool PepperProxyManager::moveBodyWithJointPos( const std::vector<float> & positions, float frac_speed )
@@ -1165,24 +1043,16 @@ bool PepperProxyManager::moveBodyWithRawTrajectoryData( const std::vector<std::s
   if (!motionProxy_ || lArmCtrl_ || rArmCtrl_ || bodyCtrl_)
     return false;
 
-  if (bodymoveThread_ && bodymoveThread_->get_id() != boost::this_thread::get_id()) {
-    ERROR_MSG( "body movement is in progress.\n" );
-    return false;
-  }
-
   size_t joint_size = joint_names.size();
   if (joint_size != key_frames.size() || joint_size != time_stamps.size()) {
     ERROR_MSG( "Inconsistent trajectory data specification." );
     return false;
   }
+
   bodyCtrl_ = true;
 
-  if (bodymoveThread_) { // we already in the thread
-    blockedBodyMoveWithData( joint_names, key_frames, time_stamps, isBezier );
-  }
-  else {
-    bodymoveThread_ = new boost::thread( &PepperProxyManager::blockedBodyMoveWithData, this, joint_names, key_frames, time_stamps, isBezier );
-  }
+  boost::thread bodymove_thread = boost::thread( &PepperProxyManager::blockedBodyMoveWithData, this, joint_names, key_frames, time_stamps, isBezier );
+  bodymove_thread.detach();
 
   return true;
 }
@@ -1245,9 +1115,6 @@ void PepperProxyManager::blockedBodyMoveWithData( const std::vector<std::string>
   PyGILState_Release( gstate );
 
   //DEBUG_MSG( "done body movement.\n" );
-
-  delete bodymoveThread_;
-  bodymoveThread_ = NULL;
 }
 
 bool PepperProxyManager::setHandPosition( bool isLeft, float openRatio, bool keepStiff )
@@ -1258,41 +1125,23 @@ bool PepperProxyManager::setHandPosition( bool isLeft, float openRatio, bool kee
   if (isLeft) {
     if (lHandCtrl_)
       return false;
-
-    if (lhandmoveThread_ && lhandmoveThread_->get_id() != boost::this_thread::get_id()) {
-      ERROR_MSG( "left hand movement is in progress.\n" );
-      return false;
-    }
   }
   else {
     if (rHandCtrl_)
       return false;
-
-    if (rhandmoveThread_ && rhandmoveThread_->get_id() != boost::this_thread::get_id()) {
-      ERROR_MSG( "right hand movement is in progress.\n" );
-      return false;
-    }
   }
 
   if (isLeft) {
     lHandCtrl_ = true;
 
-    if (lhandmoveThread_) { // we already in the thread
-      blockedHandMove( isLeft, openRatio, keepStiff );
-    }
-    else {
-      lhandmoveThread_ = new boost::thread( &PepperProxyManager::blockedHandMove, this, isLeft, openRatio, keepStiff );
-    }
+    boost::thread lhandmove_thread = boost::thread( &PepperProxyManager::blockedHandMove, this, isLeft, openRatio, keepStiff );
+    lhandmove_thread.detach();
   }
   else {
     rHandCtrl_ = true;
 
-    if (rhandmoveThread_) { // we already in the thread
-      blockedHandMove( isLeft, openRatio, keepStiff );
-    }
-    else {
-      rhandmoveThread_ = new boost::thread( &PepperProxyManager::blockedHandMove, this, isLeft, openRatio, keepStiff );
-    }
+    boost::thread rhandmove_thread = boost::thread( &PepperProxyManager::blockedHandMove, this, isLeft, openRatio, keepStiff );
+    rhandmove_thread.detach();
   }
 
   return true;
@@ -1354,14 +1203,6 @@ void PepperProxyManager::blockedHandMove( bool isLeft, float openRatio, bool kee
   PyGILState_Release( gstate );
 
   //DEBUG_MSG( "done hand movement.\n" );
-  if (isLeft) {
-    delete lhandmoveThread_;
-    lhandmoveThread_ = NULL;
-  }
-  else {
-    delete rhandmoveThread_;
-    rhandmoveThread_ = NULL;
-  }
 }
 
 int PepperProxyManager::loadAudioFile( const std::string & text )
@@ -1404,18 +1245,10 @@ bool PepperProxyManager::playAudioID( const int audioID )
     return false;
   }
 
-  if (audioThread_ && audioThread_->get_id() != boost::this_thread::get_id()) {
-    ERROR_MSG( "audio play is in progress.\n" );
-    return false;
-  }
   audioCtrl_ = true;
 
-  if (audioThread_) { // we already in the thread
-    blockedPlayAudio( audioID );
-  }
-  else {
-    audioThread_ = new boost::thread( &PepperProxyManager::blockedPlayAudio, this, audioID );
-  }
+  boost::thread audio_thread = boost::thread( &PepperProxyManager::blockedPlayAudio, this, audioID );
+  audio_thread.detach();
 
   return true;
 }
@@ -1445,9 +1278,6 @@ void PepperProxyManager::blockedPlayAudio( const int audioID )
   PyGILState_Release( gstate );
 
   //DEBUG_MSG( "done audio.\n" );
-
-  delete audioThread_;
-  audioThread_ = NULL;
 }
 
 int PepperProxyManager::getAudioVolume()
@@ -1542,19 +1372,11 @@ bool PepperProxyManager::runBehaviour( const std::string & behaviour )
   if (!behaviourManagerProxy_ || behaviourCtrl_)
     return false;
 
-  if (behaviourThread_ && behaviourThread_->get_id() != boost::this_thread::get_id()) {
-    ERROR_MSG( "behaviour is in progress.\n" );
-    return false;
-  }
-
   behaviourCtrl_ = true;
 
-  if (behaviourThread_) { // we already in the thread
-    blockedBehaviourRun( behaviour );
-  }
-  else {
-    behaviourThread_ = new boost::thread( &PepperProxyManager::blockedBehaviourRun, this, behaviour );
-  }
+  boost::thread behaviour_thread = boost::thread( &PepperProxyManager::blockedBehaviourRun, this, behaviour );
+  behaviour_thread.detach();
+
   return true;
 }
 
@@ -1579,8 +1401,6 @@ void PepperProxyManager::blockedBehaviourRun( const std::string & behaviour )
   PyGILState_Release( gstate );
 
   //DEBUG_MSG( "done behaviour.\n" );
-  delete behaviourThread_;
-  behaviourThread_ = NULL;
 }
 
 void PepperProxyManager::stopBehaviour( const std::string & behaviour )
@@ -1588,11 +1408,6 @@ void PepperProxyManager::stopBehaviour( const std::string & behaviour )
   if (behaviourManagerProxy_) {
     try {
       behaviourManagerProxy_->stopBehavior( behaviour );
-      if (behaviourThread_) {
-        behaviourThread_->join();
-        delete behaviourThread_;
-        behaviourThread_ = NULL;
-      }
     }
     catch (const ALError& e) {
       ERROR_MSG( "Unable to stop behaviour %s.\n", behaviour.c_str() );
