@@ -63,6 +63,7 @@ PepperProxyManager::PepperProxyManager() :
   lHandCtrl_( false ),
   rHandCtrl_( false ),
   bodyCtrl_( false ),
+  baseCtrl_( false ),
   behaviourCtrl_( false ),
   audioCtrl_( false ),
   runningThread_( (pthread_t)NULL ),
@@ -562,7 +563,7 @@ void PepperProxyManager::crouch()
 
 bool PepperProxyManager::moveBodyTo( const RobotPose & pose, float duration, bool cancelPreviousMove )
 {
-  if (!motionProxy_ || bodyCtrl_) {
+  if (!motionProxy_ || baseCtrl_) {
     return false;
   }
   if (motionProxy_->moveIsActive()) {
@@ -574,7 +575,7 @@ bool PepperProxyManager::moveBodyTo( const RobotPose & pose, float duration, boo
       return false;
     }
   }
-  bodyCtrl_ = true;
+  baseCtrl_ = true;
 
   boost::thread bodymove_thread = boost::thread( &PepperProxyManager::blockedBodyMoveTo, this, pose, duration );
   bodymove_thread.detach();
@@ -598,7 +599,7 @@ void PepperProxyManager::blockedBodyMoveTo( const RobotPose & pose, const float 
     ERROR_MSG( "Unable to move body position.\n" );
     isSuccess = false;
   }
-  bodyCtrl_ = false;
+  baseCtrl_ = false;
 
   PyGILState_STATE gstate;
   gstate = PyGILState_Ensure();

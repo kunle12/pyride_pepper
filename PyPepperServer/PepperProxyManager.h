@@ -239,6 +239,7 @@ private:
   bool lHandCtrl_;
   bool rHandCtrl_;
   bool bodyCtrl_;
+  bool baseCtrl_;
   bool behaviourCtrl_;
   bool audioCtrl_;
 
